@@ -108,6 +108,7 @@ export function TicketsPage({ initialView = "all" }: TicketsPageProps) {
   const activeView = getViewFromSearchParam(initialView)
 
   const [ticketItems, setTicketItems] = useState(initialTickets)
+  const [isStatsExpanded, setIsStatsExpanded] = useState(true)
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<"all" | TicketQueueStatus>(
     "all"
@@ -166,14 +167,29 @@ export function TicketsPage({ initialView = "all" }: TicketsPageProps) {
             <IconPlus className="size-4" />
             New Ticket
           </Button>
-          <Button variant="ghost" size="icon-sm" className="size-9 rounded-xl">
-            <IconChevronDown className="size-4" />
-            <span className="sr-only">Open more actions</span>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-9 rounded-xl"
+            onClick={() => setIsStatsExpanded((previousValue) => !previousValue)}
+            aria-expanded={isStatsExpanded}
+            aria-controls="ticket-metrics"
+          >
+            <IconChevronDown
+              className={`size-4 transition-transform ${
+                isStatsExpanded ? "rotate-180" : ""
+              }`}
+            />
+            <span className="sr-only">Toggle ticket metrics</span>
           </Button>
         </div>
       </section>
 
-      <TicketStats stats={stats} />
+      {isStatsExpanded ? (
+        <div id="ticket-metrics">
+          <TicketStats stats={stats} />
+        </div>
+      ) : null}
 
       <TicketSearchToolbar
         query={query}
