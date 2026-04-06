@@ -27,13 +27,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "350px",
+          "--sidebar-width": "303px",
         } as React.CSSProperties
       }
     >
       <AppSidebar />
       <SidebarInset>
-        <header className="sticky top-0 flex shrink-0 items-center gap-2 border-b bg-background p-4">
+        <header className="sticky top-0 flex shrink-0 items-center gap-2 bg-background p-4">
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
@@ -46,12 +46,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{activeRoute?.title ?? "Dashboard"}</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {activeRoute?.title ?? "Dashboard"}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <main className="flex flex-1 flex-col gap-4 p-4">{children}</main>
+        <main className="flex flex-1 flex-col gap-4 p-8">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   )

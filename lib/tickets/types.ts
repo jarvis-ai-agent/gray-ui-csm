@@ -1,0 +1,68 @@
+export type TicketQueueStatus = "open" | "pending" | "resolved" | "closed"
+
+export type TicketHealth = "warning" | "breached" | "on-track"
+
+export type TicketChannel = "email" | "chat" | "slack"
+
+export type TicketTrend = "up" | "flat"
+
+export type TicketPriority = "urgent" | "high" | "medium" | "low" | "todo"
+
+export type TicketViewKey =
+  | "all"
+  | "mine"
+  | "unassigned"
+  | "past-due"
+  | "escalated"
+
+export type TicketCategoryKey =
+  | "billing"
+  | "technical"
+  | "account-login"
+  | "subscription"
+  | "other"
+
+export interface TicketAssignee {
+  name: string
+  avatarUrl?: string
+}
+
+export interface Ticket {
+  id: string
+  ticketNumber: string
+  subject: string
+  queueStatus: TicketQueueStatus
+  health: TicketHealth
+  channel: TicketChannel
+  trend: TicketTrend
+  assignee?: TicketAssignee
+  category: TicketCategoryKey
+  priority: TicketPriority
+  mine: boolean
+  escalated: boolean
+  pastDue: boolean
+}
+
+export interface TicketStat {
+  key: "total" | "open" | "pending" | "resolved"
+  label: string
+  value: number
+  comparison: string
+}
+
+export interface TicketBoardColumn {
+  key: TicketQueueStatus
+  label: string
+}
+
+export interface TicketSidebarItem {
+  key: string
+  label: string
+  count: number
+}
+
+export interface TicketSidebarGroup {
+  key: "views" | "categories" | "priority"
+  label: string
+  items: TicketSidebarItem[]
+}

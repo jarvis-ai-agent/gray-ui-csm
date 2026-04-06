@@ -17,6 +17,7 @@ import {
 } from "@tabler/icons-react"
 
 import { NavUser } from "@/components/nav-user"
+import { TicketSidebarFilters } from "@/components/tickets/ticket-sidebar-filters"
 import { Label } from "@/components/ui/label"
 import {
   Sidebar,
@@ -100,7 +101,8 @@ const data: {
         email: "tickets@workspace.local",
         subject: "Prioritize SLA risk",
         date: "Now",
-        teaser: "Sort by priority and due state to reduce SLA breaches quickly.",
+        teaser:
+          "Sort by priority and due state to reduce SLA breaches quickly.",
       },
       {
         name: "Escalation handoff",
@@ -167,7 +169,8 @@ const data: {
         email: "automation@workspace.local",
         subject: "Workflow routing",
         date: "Today",
-        teaser: "Route tickets by plan, language, and intent with rule automation.",
+        teaser:
+          "Route tickets by plan, language, and intent with rule automation.",
       },
     ],
     Settings: [
@@ -207,6 +210,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setActiveItem(matchedItem)
     setPanelItems(data.panelBySection[matchedItem.title] ?? [])
   }, [matchedItem])
+
+  const isTicketsSection = activeItem.title === "Tickets"
 
   return (
     <Sidebar
@@ -272,40 +277,48 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </Sidebar>
 
       <Sidebar collapsible="none" className="hidden flex-1 md:flex">
-        <SidebarHeader className="gap-3.5 border-b p-4">
-          <div className="flex w-full items-center justify-between">
-            <div className="text-base font-medium text-foreground">
-              {activeItem.title}
-            </div>
-            <Label className="flex items-center gap-2 text-sm">
-              <span>Unreads</span>
-              <Switch className="shadow-none" />
-            </Label>
-          </div>
-          <SidebarInput placeholder="Type to search..." />
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup className="px-0">
-            <SidebarGroupContent>
-              {panelItems.map((item) => (
-                <a
-                  href="#"
-                  key={`${item.email}-${item.subject}`}
-                  className="flex flex-col items-start gap-2 border-b p-4 text-sm leading-tight whitespace-nowrap last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                >
-                  <div className="flex w-full items-center gap-2">
-                    <span>{item.name}</span>
-                    <span className="ml-auto text-xs">{item.date}</span>
-                  </div>
-                  <span className="font-medium">{item.subject}</span>
-                  <span className="line-clamp-2 w-[260px] text-xs whitespace-break-spaces">
-                    {item.teaser}
-                  </span>
-                </a>
-              ))}
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
+        {isTicketsSection ? (
+          <SidebarContent>
+            <TicketSidebarFilters />
+          </SidebarContent>
+        ) : (
+          <>
+            <SidebarHeader className="gap-3.5 border-b p-4">
+              <div className="flex w-full items-center justify-between">
+                <div className="text-base font-medium text-foreground">
+                  {activeItem.title}
+                </div>
+                <Label className="flex items-center gap-2 text-sm">
+                  <span>Unreads</span>
+                  <Switch className="shadow-none" />
+                </Label>
+              </div>
+              <SidebarInput placeholder="Type to search..." />
+            </SidebarHeader>
+            <SidebarContent>
+              <SidebarGroup className="px-0">
+                <SidebarGroupContent>
+                  {panelItems.map((item) => (
+                    <a
+                      href="#"
+                      key={`${item.email}-${item.subject}`}
+                      className="flex flex-col items-start gap-2 border-b p-4 text-sm leading-tight whitespace-nowrap last:border-b-0 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                    >
+                      <div className="flex w-full items-center gap-2">
+                        <span>{item.name}</span>
+                        <span className="ml-auto text-xs">{item.date}</span>
+                      </div>
+                      <span className="font-medium">{item.subject}</span>
+                      <span className="line-clamp-2 w-[260px] text-xs whitespace-break-spaces">
+                        {item.teaser}
+                      </span>
+                    </a>
+                  ))}
+                </SidebarGroupContent>
+              </SidebarGroup>
+            </SidebarContent>
+          </>
+        )}
       </Sidebar>
     </Sidebar>
   )

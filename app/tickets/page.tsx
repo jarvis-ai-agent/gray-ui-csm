@@ -1,10 +1,13 @@
-import { CsmPageTemplate } from "@/components/csm-page-template"
+import { TicketsPage } from "@/components/tickets/tickets-page"
 
-export default function TicketsPage() {
-  return (
-    <CsmPageTemplate
-      title="Tickets"
-      description="Track ownership, SLA, priority, and escalation workflows for all customer support tickets."
-    />
-  )
+type TicketsRouteProps = {
+  searchParams: Promise<{
+    view?: string
+  }>
+}
+
+export default async function Page({ searchParams }: TicketsRouteProps) {
+  const params = await searchParams
+
+  return <TicketsPage initialView={params.view ?? null} />
 }
