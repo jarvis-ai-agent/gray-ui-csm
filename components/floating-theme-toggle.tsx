@@ -3,10 +3,11 @@
 import * as React from "react"
 import { IconMoon, IconSun } from "@tabler/icons-react"
 import { useTheme } from "next-themes"
+import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 
-export function FloatingThemeToggle() {
+export function FloatingThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
@@ -20,8 +21,8 @@ export function FloatingThemeToggle() {
     <Button
       type="button"
       variant="outline"
-      size="icon"
-      className="fixed right-4 bottom-4 z-50 rounded-full shadow-lg"
+      size="icon-sm"
+      className={cn("size-9 rounded-full p-0", className)}
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       title={isDark ? "Switch to light theme" : "Switch to dark theme"}

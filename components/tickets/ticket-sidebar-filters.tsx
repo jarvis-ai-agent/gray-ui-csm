@@ -84,7 +84,7 @@ export function TicketSidebarFilters() {
     <div className="flex flex-col gap-5 px-3 py-3">
       {ticketSidebarGroups.map((group) => (
         <SidebarGroup key={group.key} className="p-2 pb-3 gap-2">
-          <SidebarGroupLabel className="py-2 px-2 text-xs tracking-wide text-sidebar-foreground/65 uppercase">
+          <SidebarGroupLabel className="py-2 px-2 text-xs tracking-widest font-mono text-sidebar-foreground/65 uppercase">
             {group.label}
           </SidebarGroupLabel>
 

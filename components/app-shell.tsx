@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { IconBell, IconMessage2, IconSearch } from "@tabler/icons-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { FloatingThemeToggle } from "@/components/floating-theme-toggle"
 import { NavUser } from "@/components/nav-user"
 import {
   Breadcrumb,
@@ -25,7 +26,7 @@ import { getRouteByPathname } from "@/lib/csm-routes"
 const currentUser = {
   name: "Jason Support Lab",
   email: "support-ops@opensource-demo.dev",
-  avatar: "/avatars/jason.jpg",
+  avatar: "/avatars/avatar-profile.jpg",
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -36,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "360px",
+          "--sidebar-width": "320px",
         } as React.CSSProperties
       }
     >
@@ -89,11 +90,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <IconMessage2 className="size-4" />
               <span className="sr-only">Chat</span>
             </Button>
+            <FloatingThemeToggle />
             <Separator
               orientation="vertical"
               className="data-vertical:h-5 data-vertical:self-auto"
             />
-            <NavUser user={currentUser} />
+            <NavUser user={currentUser}/>
           </div>
         </header>
         <main className="flex flex-1 flex-col gap-4 p-8">{children}</main>

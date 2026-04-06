@@ -2,7 +2,6 @@ import { Geist, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
 import { AppShell } from "@/components/app-shell"
-import { FloatingThemeToggle } from "@/components/floating-theme-toggle"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -34,7 +33,6 @@ export default function RootLayout({
         <ThemeProvider>
           <TooltipProvider delay={0}>
             <AppShell>{children}</AppShell>
-            <FloatingThemeToggle />
           </TooltipProvider>
         </ThemeProvider>
       </body>
