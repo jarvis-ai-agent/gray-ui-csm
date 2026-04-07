@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { ticketBoardColumns } from "@/lib/tickets/mock-data"
 import type { Ticket, TicketQueueStatus } from "@/lib/tickets/types"
@@ -6,13 +6,33 @@ import { TicketColumn } from "@/components/tickets/ticket-column"
 
 type TicketBoardProps = {
   tickets: Ticket[]
-  onMoveTicket: (ticketId: string, queueStatus: TicketQueueStatus) => void
+  onMoveTicket: (
+    ticketId: string,
+    queueStatus: TicketQueueStatus,
+    insertBeforeTicketId?: string | null
+  ) => void
+}
+
+type TicketDropTarget = {
+  columnKey: TicketQueueStatus
+  index: number
 }
 
 export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null)
-  const [dropTargetColumn, setDropTargetColumn] =
-    useState<TicketQueueStatus | null>(null)
+  const [dropTarget, setDropTarget] = useState<TicketDropTarget | null>(null)
+  const [recentlyMovedTicketId, setRecentlyMovedTicketId] =
+    useState<string | null>(null)
+
+  useEffect(() => {
+    if (!recentlyMovedTicketId) return
+
+    const timeout = window.setTimeout(() => {
+      setRecentlyMovedTicketId(null)
+    }, 1200)
+
+    return () => window.clearTimeout(timeout)
+  }, [recentlyMovedTicketId])
 
   const handleTicketDragStart = (
     ticketId: string,
@@ -25,25 +45,52 @@ export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
 
   const handleTicketDragEnd = () => {
     setDraggingTicketId(null)
-    setDropTargetColumn(null)
+    setDropTarget(null)
   }
 
-  const handleColumnDragOver =
-    (columnKey: TicketQueueStatus) => (event: React.DragEvent<HTMLElement>) => {
+  const handleDropTargetChange =
+    (columnKey: TicketQueueStatus, index: number) =>
+    (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault()
+      event.stopPropagation()
       event.dataTransfer.dropEffect = "move"
-      setDropTargetColumn(columnKey)
+      setDropTarget((currentTarget) => {
+        if (
+          currentTarget?.columnKey === columnKey &&
+          currentTarget.index === index
+        ) {
+          return currentTarget
+        }
+
+        return { columnKey, index }
+      })
     }
 
-  const handleColumnDrop =
-    (columnKey: TicketQueueStatus) => (event: React.DragEvent<HTMLElement>) => {
+  const handleDropAtIndex =
+    (columnKey: TicketQueueStatus, index: number) =>
+    (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault()
+      event.stopPropagation()
       const ticketId = event.dataTransfer.getData("text/ticket-id")
       if (!ticketId) return
 
-      onMoveTicket(ticketId, columnKey)
+      const targetColumnTickets = tickets.filter(
+        (ticket) => ticket.queueStatus === columnKey
+      )
+      const sourceIndex = targetColumnTickets.findIndex(
+        (ticket) => ticket.id === ticketId
+      )
+      const targetIndex =
+        sourceIndex !== -1 && sourceIndex < index ? index - 1 : index
+      const insertBeforeTicketId =
+        targetColumnTickets.filter((ticket) => ticket.id !== ticketId)[
+          targetIndex
+        ]?.id ?? null
+
+      onMoveTicket(ticketId, columnKey, insertBeforeTicketId)
+      setRecentlyMovedTicketId(ticketId)
       setDraggingTicketId(null)
-      setDropTargetColumn(null)
+      setDropTarget(null)
     }
 
   return (
@@ -58,11 +105,14 @@ export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
               (ticket) => ticket.queueStatus === column.key
             )}
             draggingTicketId={draggingTicketId}
-            isDropTarget={dropTargetColumn === column.key}
+            recentlyMovedTicketId={recentlyMovedTicketId}
+            dropTargetIndex={
+              dropTarget?.columnKey === column.key ? dropTarget.index : null
+            }
             onTicketDragStart={handleTicketDragStart}
             onTicketDragEnd={handleTicketDragEnd}
-            onColumnDragOver={handleColumnDragOver(column.key)}
-            onColumnDrop={handleColumnDrop(column.key)}
+            onDropTargetChange={handleDropTargetChange}
+            onDropAtIndex={handleDropAtIndex}
           />
         ))}
       </div>

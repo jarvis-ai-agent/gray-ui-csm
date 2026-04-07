@@ -137,16 +137,44 @@ export function TicketsPage({ initialView = "all" }: TicketsPageProps) {
     })
   }, [query, statusFilter, visibleByView])
 
-  const handleMoveTicket = (ticketId: string, queueStatus: TicketQueueStatus) => {
+  const handleMoveTicket = (
+    ticketId: string,
+    queueStatus: TicketQueueStatus,
+    insertBeforeTicketId?: string | null
+  ) => {
     setTicketItems((previousTickets) => {
       const target = previousTickets.find((ticket) => ticket.id === ticketId)
       if (!target) return previousTickets
 
       const nextTicket = { ...target, queueStatus }
+      const nextTickets = previousTickets.filter((ticket) => ticket.id !== ticketId)
+
+      if (insertBeforeTicketId) {
+        const insertIndex = nextTickets.findIndex(
+          (ticket) => ticket.id === insertBeforeTicketId
+        )
+
+        if (insertIndex !== -1) {
+          return [
+            ...nextTickets.slice(0, insertIndex),
+            nextTicket,
+            ...nextTickets.slice(insertIndex),
+          ]
+        }
+      }
+
+      const lastMatchingIndex = nextTickets.findLastIndex(
+        (ticket) => ticket.queueStatus === queueStatus
+      )
+
+      if (lastMatchingIndex === -1) {
+        return [...nextTickets, nextTicket]
+      }
 
       return [
-        ...previousTickets.filter((ticket) => ticket.id !== ticketId),
+        ...nextTickets.slice(0, lastMatchingIndex + 1),
         nextTicket,
+        ...nextTickets.slice(lastMatchingIndex + 1),
       ]
     })
   }

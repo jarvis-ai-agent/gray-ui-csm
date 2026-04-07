@@ -12,6 +12,7 @@ type TicketCardProps = {
   ticket: Ticket
   draggable?: boolean
   isDragging?: boolean
+  isRecentlyMoved?: boolean
   onDragStart?: (event: React.DragEvent<HTMLDivElement>) => void
   onDragEnd?: () => void
 }
@@ -32,6 +33,7 @@ export function TicketCard({
   ticket,
   draggable,
   isDragging,
+  isRecentlyMoved,
   onDragStart,
   onDragEnd,
 }: TicketCardProps) {
@@ -51,9 +53,12 @@ export function TicketCard({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        "gap-0 rounded-2xl border bg-card py-0 shadow-none ring-0 transition",
+        "gap-0 rounded-2xl border bg-card py-0 shadow-none ring-0 transition-[transform,opacity,box-shadow,border-color,background-color] duration-200",
         draggable ? "cursor-grab active:cursor-grabbing" : "",
-        isDragging ? "opacity-70" : ""
+        isDragging
+          ? "scale-[0.98] rotate-1 border-primary/25 opacity-35 shadow-xl"
+          : "",
+        isRecentlyMoved ? "border-primary/35 bg-primary/5 shadow-sm" : ""
       )}
     >
       <CardContent className="space-y-3 p-4">
