@@ -48,7 +48,7 @@ export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
 
   return (
     <div className="pb-2">
-      <div className="mx-auto grid w-full max-w-screen-2xl grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mx-auto grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {ticketBoardColumns.map((column) => (
           <TicketColumn
             key={column.key}
