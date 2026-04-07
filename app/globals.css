@@ -116,6 +116,19 @@
     --sidebar-ring: oklch(0.552 0.016 285.938);
 }
 
+@layer components {
+  .btn-primary-chrome {
+    border-radius: var(--radius-lg);
+    border: 1.333px solid rgba(255, 255, 255, 0.12);
+    background: var(--primary);
+    box-shadow:
+      0 0 0 0.667px rgba(0, 0, 0, 0.2) inset,
+      0 2px 2px 0 rgba(255, 255, 255, 0.1) inset,
+      0 2px 2.667px -0.667px rgba(42, 42, 42, 0.1),
+      0 0.667px 0.667px 0 rgba(42, 42, 42, 0.08);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

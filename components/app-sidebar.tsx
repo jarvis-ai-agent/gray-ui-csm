@@ -226,7 +226,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     border: "1px solid rgba(255, 255, 255, 0.12)",
                     background: "var(--primary)",
                     boxShadow:
-                      "0 0 0 0.667px rgba(0, 0, 0, 0.20) inset, 0 2px 2px 0 rgba(255, 255, 255, 0.10) inset, 0 -2px 2px 0 rgba(0, 0, 0, 0.10) inset, 0 2px 2.667px -0.667px rgba(42, 42, 42, 0.14), 0 0.667px 0.667px 0 rgba(42, 42, 42, 0.08)",
+                      "0 0 0 0.667px rgba(0, 0, 0, 0.20) inset, 0 2px 2px 0 rgba(255, 255, 255, 0.10) inset, 0 2px 2.667px -0.667px rgba(42, 42, 42, 0.1), 0 0.667px 0.667px 0 rgba(42, 42, 42, 0.08)",
                   }}
                 >
                   <IconCommand className="size-4" />
