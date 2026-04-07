@@ -9,6 +9,7 @@ import { TicketStats } from "@/components/tickets/ticket-stats"
 import { Button } from "@/components/ui/button"
 import { filterTicketsByView, tickets as initialTickets } from "@/lib/tickets/mock-data"
 import type {
+  Ticket,
   TicketQueueStatus,
   TicketStat,
   TicketTrend,
@@ -100,6 +101,16 @@ function buildStats(sourceTickets: typeof initialTickets): TicketStat[] {
   ]
 }
 
+function sortTicketsByBoardOrder(sourceTickets: Ticket[]) {
+  return [...sourceTickets].sort((leftTicket, rightTicket) => {
+    if (leftTicket.boardOrder === rightTicket.boardOrder) {
+      return leftTicket.id.localeCompare(rightTicket.id)
+    }
+
+    return leftTicket.boardOrder - rightTicket.boardOrder
+  })
+}
+
 type TicketsPageProps = {
   initialView?: string | null
 }
@@ -143,39 +154,77 @@ export function TicketsPage({ initialView = "all" }: TicketsPageProps) {
     insertBeforeTicketId?: string | null
   ) => {
     setTicketItems((previousTickets) => {
-      const target = previousTickets.find((ticket) => ticket.id === ticketId)
-      if (!target) return previousTickets
+      const movingTicket = previousTickets.find((ticket) => ticket.id === ticketId)
+      if (!movingTicket) return previousTickets
 
-      const nextTicket = { ...target, queueStatus }
-      const nextTickets = previousTickets.filter((ticket) => ticket.id !== ticketId)
-
-      if (insertBeforeTicketId) {
-        const insertIndex = nextTickets.findIndex(
-          (ticket) => ticket.id === insertBeforeTicketId
+      const sourceQueueStatus = movingTicket.queueStatus
+      const sourceColumnTickets = sortTicketsByBoardOrder(
+        previousTickets.filter(
+          (ticket) =>
+            ticket.queueStatus === sourceQueueStatus && ticket.id !== ticketId
         )
-
-        if (insertIndex !== -1) {
-          return [
-            ...nextTickets.slice(0, insertIndex),
-            nextTicket,
-            ...nextTickets.slice(insertIndex),
-          ]
-        }
+      )
+      const targetColumnTickets = sortTicketsByBoardOrder(
+        previousTickets.filter(
+          (ticket) => ticket.queueStatus === queueStatus && ticket.id !== ticketId
+        )
+      )
+      const nextTargetColumnTickets =
+        sourceQueueStatus === queueStatus
+          ? [...sourceColumnTickets]
+          : [...targetColumnTickets]
+      const insertIndex = insertBeforeTicketId
+        ? nextTargetColumnTickets.findIndex(
+            (ticket) => ticket.id === insertBeforeTicketId
+          )
+        : nextTargetColumnTickets.length
+      const nextMovingTicket = {
+        ...movingTicket,
+        queueStatus,
       }
 
-      const lastMatchingIndex = nextTickets.findLastIndex(
-        (ticket) => ticket.queueStatus === queueStatus
+      nextTargetColumnTickets.splice(
+        insertIndex === -1 ? nextTargetColumnTickets.length : insertIndex,
+        0,
+        nextMovingTicket
       )
 
-      if (lastMatchingIndex === -1) {
-        return [...nextTickets, nextTicket]
+      const nextSourceColumnTickets =
+        sourceQueueStatus === queueStatus
+          ? nextTargetColumnTickets
+          : sourceColumnTickets
+      const orderUpdates = new Map<
+        string,
+        Pick<Ticket, "queueStatus" | "boardOrder">
+      >()
+
+      nextSourceColumnTickets.forEach((ticket, index) => {
+        orderUpdates.set(ticket.id, {
+          queueStatus: sourceQueueStatus === queueStatus ? queueStatus : sourceQueueStatus,
+          boardOrder: index,
+        })
+      })
+
+      if (sourceQueueStatus !== queueStatus) {
+        nextTargetColumnTickets.forEach((ticket, index) => {
+          orderUpdates.set(ticket.id, {
+            queueStatus,
+            boardOrder: index,
+          })
+        })
       }
 
-      return [
-        ...nextTickets.slice(0, lastMatchingIndex + 1),
-        nextTicket,
-        ...nextTickets.slice(lastMatchingIndex + 1),
-      ]
+      return previousTickets.map((ticket) => {
+        const update = orderUpdates.get(ticket.id)
+
+        if (!update) return ticket
+
+        return {
+          ...ticket,
+          queueStatus: update.queueStatus,
+          boardOrder: update.boardOrder,
+        }
+      })
     })
   }
 

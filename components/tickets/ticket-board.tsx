@@ -18,6 +18,16 @@ type TicketDropTarget = {
   index: number
 }
 
+function sortTicketsForBoard(sourceTickets: Ticket[]) {
+  return [...sourceTickets].sort((leftTicket, rightTicket) => {
+    if (leftTicket.boardOrder === rightTicket.boardOrder) {
+      return leftTicket.id.localeCompare(rightTicket.id)
+    }
+
+    return leftTicket.boardOrder - rightTicket.boardOrder
+  })
+}
+
 export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
   const [draggingTicketId, setDraggingTicketId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<TicketDropTarget | null>(null)
@@ -77,13 +87,14 @@ export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
       const targetColumnTickets = tickets.filter(
         (ticket) => ticket.queueStatus === columnKey
       )
-      const sourceIndex = targetColumnTickets.findIndex(
+      const orderedTargetColumnTickets = sortTicketsForBoard(targetColumnTickets)
+      const sourceIndex = orderedTargetColumnTickets.findIndex(
         (ticket) => ticket.id === ticketId
       )
       const targetIndex =
         sourceIndex !== -1 && sourceIndex < index ? index - 1 : index
       const insertBeforeTicketId =
-        targetColumnTickets.filter((ticket) => ticket.id !== ticketId)[
+        orderedTargetColumnTickets.filter((ticket) => ticket.id !== ticketId)[
           targetIndex
         ]?.id ?? null
 
@@ -93,17 +104,22 @@ export function TicketBoard({ tickets, onMoveTicket }: TicketBoardProps) {
       setDropTarget(null)
     }
 
+  const ticketsByColumn = ticketBoardColumns.map((column) => ({
+    ...column,
+    tickets: sortTicketsForBoard(
+      tickets.filter((ticket) => ticket.queueStatus === column.key)
+    ),
+  }))
+
   return (
     <div className="pb-2">
       <div className="mx-auto grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {ticketBoardColumns.map((column) => (
+        {ticketsByColumn.map((column) => (
           <TicketColumn
             key={column.key}
             columnKey={column.key}
             title={column.label}
-            tickets={tickets.filter(
-              (ticket) => ticket.queueStatus === column.key
-            )}
+            tickets={column.tickets}
             draggingTicketId={draggingTicketId}
             recentlyMovedTicketId={recentlyMovedTicketId}
             dropTargetIndex={

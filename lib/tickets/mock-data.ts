@@ -8,6 +8,8 @@ import type {
   TicketViewKey,
 } from "@/lib/tickets/types"
 
+type TicketSeed = Omit<Ticket, "boardOrder">
+
 export const ticketBoardColumns: TicketBoardColumn[] = [
   { key: "open", label: "Open" },
   { key: "pending", label: "Pending" },
@@ -15,7 +17,7 @@ export const ticketBoardColumns: TicketBoardColumn[] = [
   { key: "closed", label: "Closed" },
 ]
 
-export const tickets: Ticket[] = [
+const ticketSeeds: TicketSeed[] = [
   {
     id: "t-001",
     ticketNumber: "#-001",
@@ -314,6 +316,18 @@ export const tickets: Ticket[] = [
     pastDue: false,
   },
 ]
+
+export const tickets: Ticket[] = ticketSeeds.map((ticket, index, allTickets) => {
+  const boardOrder = allTickets
+    .slice(0, index)
+    .filter((currentTicket) => currentTicket.queueStatus === ticket.queueStatus)
+    .length
+
+  return {
+    ...ticket,
+    boardOrder,
+  }
+})
 
 export const ticketSidebarGroups: TicketSidebarGroup[] =
   buildTicketSidebarGroups(tickets)

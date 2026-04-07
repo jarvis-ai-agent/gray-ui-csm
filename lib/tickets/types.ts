@@ -32,6 +32,7 @@ export interface Ticket {
   ticketNumber: string
   subject: string
   queueStatus: TicketQueueStatus
+  boardOrder: number
   health: TicketHealth
   channel: TicketChannel
   trend: TicketTrend
