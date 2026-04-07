@@ -21,13 +21,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { currentUser } from "@/lib/current-user"
 import { getRouteByPathname } from "@/lib/csm-routes"
-
-const currentUser = {
-  name: "Jason Support Lab",
-  email: "support-ops@opensource-demo.dev",
-  avatar: "/avatars/avatar-profile.jpg",
-}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

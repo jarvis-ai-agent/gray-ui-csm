@@ -2,8 +2,9 @@ import { IconBrandSlack, IconMail, IconMessage2 } from "@tabler/icons-react"
 
 import { TicketPriorityIndicator } from "@/components/tickets/ticket-priority-indicator"
 import { TicketTag } from "@/components/tickets/ticket-tag"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent } from "@/components/ui/card"
+import { currentUser } from "@/lib/current-user"
 import type { Ticket } from "@/lib/tickets/types"
 import { cn } from "@/lib/utils"
 
@@ -40,6 +41,9 @@ export function TicketCard({
     .join("")
     .slice(0, 2)
     .toUpperCase()
+  const avatarUrl = ticket.mine
+    ? currentUser.avatar
+    : ticket.assignee?.avatarUrl
 
   return (
     <Card
@@ -69,6 +73,9 @@ export function TicketCard({
 
         <div className="flex items-center justify-between">
           <Avatar className="size-6 border bg-background">
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt={ticket.assignee?.name ?? "Assignee"} />
+            ) : null}
             <AvatarFallback className="text-xs">
               {initials || "--"}
             </AvatarFallback>
