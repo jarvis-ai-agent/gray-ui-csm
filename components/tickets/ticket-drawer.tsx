@@ -248,7 +248,7 @@ export function TicketDrawer({ open, ticket, ...props }: TicketDrawerProps) {
         side="right"
         showCloseButton={false}
         className={cn(
-          "overflow-hidden p-0 data-[side=right]:top-0 data-[side=right]:right-0 data-[side=right]:bottom-0 data-[side=right]:h-dvh data-[side=right]:w-screen data-[side=right]:rounded-none data-[side=right]:border-l data-[side=right]:border-border/70 sm:shadow-2xl sm:data-[side=right]:top-3 sm:data-[side=right]:right-3 sm:data-[side=right]:bottom-3 sm:data-[side=right]:h-[calc(100dvh-1.5rem)] sm:data-[side=right]:w-[min(calc(100vw-1.5rem),clamp(34rem,36vw,46rem))] sm:data-[side=right]:max-w-none sm:data-[side=right]:rounded-[22px] sm:data-[side=right]:border",
+          "overflow-hidden p-0 transition-[width,transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width,transform] motion-reduce:transition-none data-[side=right]:top-0 data-[side=right]:right-0 data-[side=right]:bottom-0 data-[side=right]:h-dvh data-[side=right]:w-screen data-[side=right]:rounded-none data-[side=right]:border-l data-[side=right]:border-border/70 sm:shadow-2xl sm:data-[side=right]:top-3 sm:data-[side=right]:right-3 sm:data-[side=right]:bottom-3 sm:data-[side=right]:h-[calc(100dvh-1.5rem)] sm:data-[side=right]:w-[min(calc(100vw-1.5rem),clamp(34rem,36vw,46rem))] sm:data-[side=right]:max-w-none sm:data-[side=right]:rounded-[22px] sm:data-[side=right]:border",
           isExpanded &&
             "lg:data-[side=right]:w-[min(calc(100vw-2rem),clamp(60rem,72vw,78rem))]"
         )}
@@ -450,8 +450,8 @@ function TicketDrawerPanel({
   }, [isTagComposerOpen])
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-background">
-      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl">
+    <div className="flex h-full flex-col overflow-hidden bg-background transition-[background-color] duration-300 motion-reduce:transition-none">
+      <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl transition-[background-color,border-color] duration-300 motion-reduce:transition-none">
         <div className="flex items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground ring-1 ring-foreground/15">
@@ -472,14 +472,15 @@ function TicketDrawerPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="rounded-full text-muted-foreground"
+              className="hidden rounded-full text-muted-foreground transition-[transform,background-color,color,box-shadow] duration-200 ease-out hover:scale-[1.02] active:scale-[0.98] lg:inline-flex"
               aria-label={isExpanded ? "Collapse drawer" : "Expand drawer"}
+              aria-pressed={isExpanded}
               onClick={() => onExpandedChange(!isExpanded)}
             >
               {isExpanded ? (
-                <IconArrowsMinimize className="size-4" />
+                <IconArrowsMinimize className="size-4 transition-transform duration-200 ease-out" />
               ) : (
-                <IconArrowsMaximize className="size-4" />
+                <IconArrowsMaximize className="size-4 transition-transform duration-200 ease-out" />
               )}
             </Button>
 
@@ -534,7 +535,7 @@ function TicketDrawerPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="rounded-full text-muted-foreground"
+              className="rounded-full text-muted-foreground transition-[transform,background-color,color,box-shadow] duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
               aria-label="Close drawer"
               onClick={() => onOpenChange(false)}
             >
@@ -547,13 +548,13 @@ function TicketDrawerPanel({
       <div className="min-h-0 flex-1 overflow-hidden">
         <div
           className={cn(
-            "grid h-full min-h-0 grid-cols-1",
+            "grid h-full min-h-0 grid-cols-1 transition-[grid-template-columns] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
             isExpanded && "lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]"
           )}
         >
           <section
             className={cn(
-              "flex min-h-0 min-h-[14rem] flex-col px-5 py-5",
+              "flex min-h-0 min-h-[14rem] flex-col px-5 py-5 transition-[border-color,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:translate-x-0 lg:opacity-100",
               isExpanded
                 ? "order-1 border-b border-border/70 lg:border-r lg:border-b-0"
                 : "order-2 border-t border-border/70"
@@ -781,7 +782,7 @@ function TicketDrawerPanel({
 
           <section
             className={cn(
-              "scrollbar-hidden relative min-h-0 overflow-y-auto px-5 py-5",
+              "scrollbar-hidden relative min-h-0 overflow-y-auto px-5 py-5 transition-[border-color,opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none lg:translate-x-0 lg:opacity-100",
               isExpanded ? "order-2" : "order-1"
             )}
           >
@@ -1135,7 +1136,7 @@ function TicketDrawerPanel({
         </div>
       </div>
 
-      <footer className="sticky bottom-0 z-20 border-t border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl">
+      <footer className="sticky bottom-0 z-20 border-t border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl transition-[background-color,border-color] duration-300 motion-reduce:transition-none">
         <div className="flex items-center justify-end gap-3">
           <Button
             type="button"
