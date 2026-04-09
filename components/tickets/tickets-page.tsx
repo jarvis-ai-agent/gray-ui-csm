@@ -37,13 +37,16 @@ import {
   filterTicketsByView,
   tickets as initialTickets,
 } from "@/lib/tickets/mock-data"
+import { currentUser } from "@/lib/current-user"
 import type {
   TicketAssignee,
   TicketLayoutMode,
   Ticket,
+  TicketPerson,
   TicketPriority,
   TicketQueueStatus,
   TicketStat,
+  TicketSubmitAction,
   TicketTrend,
   TicketViewKey,
 } from "@/lib/tickets/types"
@@ -75,6 +78,47 @@ const bulkStatusLabel: Record<TicketQueueStatus, string> = {
   pending: "Pending",
   resolved: "Resolved",
   closed: "Closed",
+}
+const NEW_TICKET_ID = "__new-ticket__"
+
+function createDraftTicket(nextIndex: number): Ticket {
+  const paddedIndex = String(nextIndex).padStart(3, "0")
+
+  return {
+    id: NEW_TICKET_ID,
+    ticketNumber: `#-${paddedIndex}`,
+    subject: "",
+    queueStatus: "open",
+    boardOrder: 0,
+    health: "on-track",
+    channel: "email",
+    trend: "flat",
+    requester: undefined,
+    assignee: {
+      name: currentUser.name,
+      avatarUrl: currentUser.avatar,
+      email: currentUser.email,
+    },
+    followers: [],
+    tags: [],
+    ticketType: "incident",
+    category: "other",
+    priority: "medium",
+    mine: true,
+    escalated: false,
+    pastDue: false,
+  }
+}
+
+function getNextTicketSequence(sourceTickets: Ticket[]) {
+  return (
+    sourceTickets.reduce((maxValue, ticket) => {
+      const numericPart = Number(ticket.id.replace(/[^\d]/g, ""))
+      return Number.isFinite(numericPart)
+        ? Math.max(maxValue, numericPart)
+        : maxValue
+    }, 0) + 1
+  )
 }
 
 function getViewFromSearchParam(view: string | null): TicketViewKey {
@@ -211,6 +255,12 @@ export function TicketsPage({
   const [tableToolbarProps, setTableToolbarProps] =
     useState<DataGridToolbarRenderProps<TicketColumnId> | null>(null)
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({})
+  const [replyFromByTicketId, setReplyFromByTicketId] = useState<
+    Record<string, string>
+  >({})
+  const [createTicketDraft, setCreateTicketDraft] = useState<Ticket | null>(
+    null
+  )
 
   useEffect(() => {
     setActiveLayout(resolvedLayout)
@@ -283,15 +333,53 @@ export function TicketsPage({
     )
   }, [ticketItems])
 
+  const drawerPeopleOptions = useMemo(() => {
+    const optionsMap = new Map<string, TicketPerson>()
+
+    ticketItems.forEach((ticket) => {
+      const candidates = [
+        ticket.requester,
+        ticket.assignee,
+        ...(ticket.followers ?? []),
+      ].filter(Boolean) as TicketPerson[]
+
+      candidates.forEach((person) => {
+        if (!optionsMap.has(person.name)) {
+          optionsMap.set(person.name, person)
+        }
+      })
+    })
+
+    if (!optionsMap.has(currentUser.name)) {
+      optionsMap.set(currentUser.name, {
+        name: currentUser.name,
+        avatarUrl: currentUser.avatar,
+        email: currentUser.email,
+      })
+    }
+
+    return Array.from(optionsMap.values()).sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )
+  }, [ticketItems])
+
   const activeTicket = useMemo(
     () =>
-      activeTicketId
-        ? ticketItems.find((ticket) => ticket.id === activeTicketId) ?? null
-        : null,
-    [activeTicketId, ticketItems]
+      activeTicketId === NEW_TICKET_ID
+        ? createTicketDraft
+        : activeTicketId
+          ? (ticketItems.find((ticket) => ticket.id === activeTicketId) ?? null)
+          : null,
+    [activeTicketId, createTicketDraft, ticketItems]
   )
+  const drawerMode = activeTicketId === NEW_TICKET_ID ? "create" : "edit"
 
-  const activeDraft = activeTicketId ? messageDrafts[activeTicketId] ?? "" : ""
+  const activeDraft = activeTicketId
+    ? (messageDrafts[activeTicketId] ?? "")
+    : ""
+  const activeReplyFrom = activeTicketId
+    ? replyFromByTicketId[activeTicketId]
+    : undefined
 
   const replaceSearchParams = (nextSearchParams: URLSearchParams) => {
     startTransition(() => {
@@ -315,6 +403,13 @@ export function TicketsPage({
     ticketId: string,
     updater: (currentTicket: Ticket) => Ticket
   ) => {
+    if (ticketId === NEW_TICKET_ID) {
+      setCreateTicketDraft((currentDraft) =>
+        currentDraft ? updater(currentDraft) : currentDraft
+      )
+      return
+    }
+
     setTicketItems((previousTickets) =>
       previousTickets.map((ticket) =>
         ticket.id === ticketId ? updater(ticket) : ticket
@@ -427,6 +522,17 @@ export function TicketsPage({
     replaceSearchParams(nextSearchParams)
   }
 
+  const handleCreateTicket = () => {
+    const nextSequence = getNextTicketSequence(ticketItems)
+    setCreateTicketDraft(createDraftTicket(nextSequence))
+
+    const nextSearchParams = new URLSearchParams(searchParams.toString())
+    nextSearchParams.set("view", activeView)
+    nextSearchParams.set("layout", activeLayout)
+    nextSearchParams.set("ticket", NEW_TICKET_ID)
+    replaceSearchParams(nextSearchParams)
+  }
+
   const handleCloseTicket = () => {
     if (
       activeTicketId &&
@@ -440,6 +546,21 @@ export function TicketsPage({
     nextSearchParams.delete("ticket")
     nextSearchParams.set("view", activeView)
     nextSearchParams.set("layout", activeLayout)
+
+    if (activeTicketId === NEW_TICKET_ID) {
+      setCreateTicketDraft(null)
+      setMessageDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts }
+        delete nextDrafts[NEW_TICKET_ID]
+        return nextDrafts
+      })
+      setReplyFromByTicketId((currentAddresses) => {
+        const nextAddresses = { ...currentAddresses }
+        delete nextAddresses[NEW_TICKET_ID]
+        return nextAddresses
+      })
+    }
+
     replaceSearchParams(nextSearchParams)
   }
 
@@ -458,7 +579,55 @@ export function TicketsPage({
     }))
   }
 
-  const handleSubmitMessage = (ticketId: string) => {
+  const handleSubmitMessage = (
+    ticketId: string,
+    action: TicketSubmitAction = "send"
+  ) => {
+    if (ticketId === NEW_TICKET_ID) {
+      if (!createTicketDraft) return
+
+      const subject = createTicketDraft.subject.trim()
+      if (!subject) return
+
+      setTicketItems((previousTickets) => {
+        const nextSequence = getNextTicketSequence(previousTickets)
+        const paddedIndex = String(nextSequence).padStart(3, "0")
+        const openTicketCount = previousTickets.filter(
+          (ticket) => ticket.queueStatus === "open"
+        ).length
+
+        return [
+          {
+            ...createTicketDraft,
+            id: `t-${paddedIndex}`,
+            ticketNumber: `#-${paddedIndex}`,
+            subject,
+            boardOrder: openTicketCount,
+          },
+          ...previousTickets,
+        ]
+      })
+
+      setCreateTicketDraft(null)
+      setMessageDrafts((currentDrafts) => {
+        const nextDrafts = { ...currentDrafts }
+        delete nextDrafts[NEW_TICKET_ID]
+        return nextDrafts
+      })
+      setReplyFromByTicketId((currentAddresses) => {
+        const nextAddresses = { ...currentAddresses }
+        delete nextAddresses[NEW_TICKET_ID]
+        return nextAddresses
+      })
+
+      const nextSearchParams = new URLSearchParams(searchParams.toString())
+      nextSearchParams.delete("ticket")
+      nextSearchParams.set("view", activeView)
+      nextSearchParams.set("layout", activeLayout)
+      replaceSearchParams(nextSearchParams)
+      return
+    }
+
     const draft = messageDrafts[ticketId]?.trim()
     if (!draft) return
 
@@ -469,7 +638,24 @@ export function TicketsPage({
 
     updateTicketItem(ticketId, (ticket) => ({
       ...ticket,
-      queueStatus: ticket.queueStatus === "open" ? "pending" : ticket.queueStatus,
+      queueStatus:
+        action === "resolved"
+          ? "resolved"
+          : action === "pending"
+            ? "pending"
+            : ticket.queueStatus === "open"
+              ? "pending"
+              : ticket.queueStatus,
+    }))
+  }
+
+  const handleReplyFromAddressChange = (
+    ticketId: string,
+    nextAddress: string
+  ) => {
+    setReplyFromByTicketId((currentAddresses) => ({
+      ...currentAddresses,
+      [ticketId]: nextAddress,
     }))
   }
 
@@ -485,7 +671,11 @@ export function TicketsPage({
             <IconDownload className="size-4" />
             Export
           </Button>
-          <Button size="sm" className="h-9 rounded-xl">
+          <Button
+            size="sm"
+            className="h-9 rounded-xl"
+            onClick={handleCreateTicket}
+          >
             <IconPlus className="size-4" />
             New Ticket
           </Button>
@@ -701,13 +891,17 @@ export function TicketsPage({
 
       <TicketDrawer
         open={activeTicket !== null}
+        mode={drawerMode}
         ticket={activeTicket}
         assigneeOptions={drawerAssigneeOptions}
+        peopleOptions={drawerPeopleOptions}
         draftMessage={activeDraft}
+        replyFromAddress={activeReplyFrom}
         onDraftMessageChange={handleDraftMessageChange}
         onOpenChange={handleDrawerOpenChange}
         onUpdateTicket={updateTicketItem}
         onSubmitMessage={handleSubmitMessage}
+        onReplyFromAddressChange={handleReplyFromAddressChange}
       />
     </div>
   )

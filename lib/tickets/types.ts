@@ -8,6 +8,8 @@ export type TicketTrend = "up" | "down" | "flat"
 
 export type TicketPriority = "urgent" | "high" | "medium" | "low" | "todo"
 
+export type TicketType = "incident" | "question" | "task" | "problem"
+
 export type TicketViewKey =
   | "all"
   | "mine"
@@ -17,6 +19,8 @@ export type TicketViewKey =
 
 export type TicketLayoutMode = "board" | "table"
 
+export type TicketSubmitAction = "send" | "pending" | "resolved"
+
 export type TicketCategoryKey =
   | "billing"
   | "technical"
@@ -24,10 +28,13 @@ export type TicketCategoryKey =
   | "subscription"
   | "other"
 
-export interface TicketAssignee {
+export interface TicketPerson {
   name: string
   avatarUrl?: string
+  email?: string
 }
+
+export type TicketAssignee = TicketPerson
 
 export interface Ticket {
   id: string
@@ -38,7 +45,11 @@ export interface Ticket {
   health: TicketHealth
   channel: TicketChannel
   trend: TicketTrend
+  requester?: TicketPerson
   assignee?: TicketAssignee
+  followers?: TicketPerson[]
+  tags?: string[]
+  ticketType?: TicketType
   category: TicketCategoryKey
   priority: TicketPriority
   mine: boolean

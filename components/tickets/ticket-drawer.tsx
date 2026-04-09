@@ -1,126 +1,131 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
-  IconBrandSlack,
-  IconCheck,
   IconChevronDown,
-  IconCircleDot,
-  IconClock,
   IconDots,
   IconExternalLink,
   IconLink,
-  IconLock,
-  IconMail,
-  IconMessage2,
+  IconMicrophone,
   IconMoodSmile,
   IconPaperclip,
   IconPhoto,
-  IconSparkles,
+  IconSearch,
+  IconTag,
   IconTicket,
+  IconUser,
   IconX,
 } from "@tabler/icons-react"
 
-import { TicketPriorityIndicator } from "@/components/tickets/ticket-priority-indicator"
-import { TicketTag } from "@/components/tickets/ticket-tag"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from "@/components/ui/sheet"
-import { currentUser } from "@/lib/current-user"
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import { currentUser, replyFromAccounts } from "@/lib/current-user"
 import type {
   Ticket,
   TicketAssignee,
-  TicketCategoryKey,
-  TicketChannel,
+  TicketPerson,
   TicketPriority,
-  TicketQueueStatus,
+  TicketSubmitAction,
+  TicketType,
 } from "@/lib/tickets/types"
 import { cn } from "@/lib/utils"
 
+type TicketDrawerMode = "create" | "edit"
+
 type TicketDrawerProps = {
   open: boolean
+  mode: TicketDrawerMode
   ticket: Ticket | null
   assigneeOptions: TicketAssignee[]
+  peopleOptions: TicketPerson[]
   draftMessage: string
+  replyFromAddress?: string
   onDraftMessageChange: (nextDraft: string) => void
   onOpenChange: (open: boolean) => void
-  onUpdateTicket: (ticketId: string, updater: (ticket: Ticket) => Ticket) => void
-  onSubmitMessage: (ticketId: string) => void
+  onUpdateTicket: (
+    ticketId: string,
+    updater: (ticket: Ticket) => Ticket
+  ) => void
+  onSubmitMessage: (ticketId: string, action?: TicketSubmitAction) => void
+  onReplyFromAddressChange: (ticketId: string, nextAddress: string) => void
 }
 
-const statusOptions: TicketQueueStatus[] = [
-  "open",
-  "pending",
-  "resolved",
-  "closed",
+const macroOptions = [
+  "Hello! We're here to help you with any inquiries.",
+  "Hi! Our Customer Service team is at your service.",
+  "Welcome! Feel free to reach out to us for support.",
+  "Thank you for using the app.",
 ]
-const priorityOptions: TicketPriority[] = [
-  "urgent",
-  "high",
-  "medium",
-  "low",
-  "todo",
+
+const ticketTypeOptions: Array<{ value: TicketType; label: string }> = [
+  { value: "incident", label: "Incident" },
+  { value: "question", label: "Question" },
+  { value: "task", label: "Task" },
+  { value: "problem", label: "Problem" },
 ]
-const categoryOptions: TicketCategoryKey[] = [
-  "billing",
-  "technical",
-  "account-login",
-  "subscription",
-  "other",
+
+const priorityOptions: Array<{
+  value: TicketPriority
+  label: string
+  dotClassName: string
+}> = [
+  { value: "low", label: "Low", dotClassName: "bg-primary" },
+  { value: "medium", label: "Medium", dotClassName: "bg-chart-3" },
+  { value: "high", label: "High", dotClassName: "bg-destructive" },
 ]
-const channelOptions: TicketChannel[] = ["email", "chat", "slack"]
 
-const statusLabel: Record<TicketQueueStatus, string> = {
-  open: "Open",
-  pending: "Pending",
-  resolved: "Resolved",
-  closed: "Closed",
+const replyActionOptions: Array<{
+  action: TicketSubmitAction
+  label: string
+  description: string
+}> = [
+  {
+    action: "send",
+    label: "Send reply",
+    description: "Reply and keep the current workflow moving.",
+  },
+  {
+    action: "pending",
+    label: "Send and mark pending",
+    description: "Reply and wait for the customer or another team.",
+  },
+  {
+    action: "resolved",
+    label: "Send and resolve",
+    description: "Reply and close the loop when the issue is solved.",
+  },
+]
+
+const noAssigneeValue = "__unassigned__"
+const noRequesterValue = "__no-requester__"
+
+function normalizePriority(priority: TicketPriority) {
+  if (priority === "urgent") return "high"
+  if (priority === "todo") return "low"
+  return priority
 }
 
-const categoryLabel: Record<TicketCategoryKey, string> = {
-  billing: "Billing",
-  technical: "Technical",
-  "account-login": "Access",
-  subscription: "Subscription",
-  other: "Other",
-}
-
-const channelLabel: Record<TicketChannel, string> = {
-  email: "Email",
-  chat: "Chat",
-  slack: "Slack",
-}
-
-function getStatusIcon(status: TicketQueueStatus) {
-  if (status === "open") return <IconCircleDot className="size-4" />
-  if (status === "pending") return <IconClock className="size-4" />
-  if (status === "resolved") return <IconCheck className="size-4" />
-  return <IconLock className="size-4" />
-}
-
-function getChannelIcon(channel: TicketChannel) {
-  if (channel === "email") return <IconMail className="size-4" />
-  if (channel === "slack") return <IconBrandSlack className="size-4" />
-  return <IconMessage2 className="size-4" />
-}
-
-function getTicketInitials(ticket: Ticket) {
-  const name = ticket.assignee?.name
-
+function getInitials(name?: string) {
   if (!name) return "--"
 
   return name
@@ -129,40 +134,6 @@ function getTicketInitials(ticket: Ticket) {
     .join("")
     .slice(0, 2)
     .toUpperCase()
-}
-
-function buildTriageSummary(ticket: Ticket) {
-  const urgency =
-    ticket.priority === "urgent" || ticket.health === "breached" || ticket.pastDue
-      ? "high urgency"
-      : ticket.priority === "high" || ticket.health === "warning"
-        ? "elevated urgency"
-        : "normal urgency"
-
-  const summary = `${categoryLabel[ticket.category]} request from ${channelLabel[
-    ticket.channel
-  ].toLowerCase()} with ${urgency}.`
-
-  const nextStep = ticket.queueStatus === "pending"
-    ? "Follow up with the customer and unblock the next decision."
-    : ticket.queueStatus === "resolved"
-      ? "Confirm resolution and close the loop with the customer."
-      : ticket.assignee
-        ? `Coordinate next response with ${ticket.assignee.name}.`
-        : "Assign an owner and send the first clear response."
-
-  const latestPreview =
-    ticket.channel === "email"
-      ? "Customer shared context and expects a concrete next step in the next reply."
-      : ticket.channel === "slack"
-        ? "Conversation is active and needs a fast operational answer to maintain momentum."
-        : "Customer is waiting in chat and likely benefits from a concise, actionable response."
-
-  return {
-    summary,
-    nextStep,
-    latestPreview,
-  }
 }
 
 function MetadataField({
@@ -175,38 +146,87 @@ function MetadataField({
   className?: string
 }) {
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-        {label}
-      </div>
+    <div className={cn("space-y-2.5", className)}>
+      <div className="text-sm font-semibold text-foreground/80">{label}</div>
       {children}
     </div>
   )
 }
 
-function SelectFieldButton({ children }: { children?: React.ReactNode }) {
+function FieldSelectTrigger({
+  children,
+  className,
+}: {
+  children?: React.ReactNode
+  className?: string
+}) {
   return (
-    <Button
-      variant="outline"
-      className="h-10 w-full justify-between rounded-2xl border-border/70 bg-background px-3 font-normal"
+    <SelectTrigger
+      className={cn(
+        "h-12 w-full rounded-xl border border-border/70 bg-background px-3.5 shadow-none",
+        className
+      )}
     >
       <span className="inline-flex min-w-0 items-center gap-2 truncate">
         {children}
       </span>
-      <IconChevronDown className="size-4 text-muted-foreground" />
-    </Button>
+    </SelectTrigger>
   )
 }
 
-export function TicketDrawer({
-  open,
-  ticket,
-  ...props
-}: TicketDrawerProps) {
+function PersonAvatar({
+  person,
+  fallbackClassName,
+}: {
+  person?: TicketPerson
+  fallbackClassName?: string
+}) {
+  return (
+    <Avatar className="size-6 border border-border/70 bg-background" size="sm">
+      {person?.avatarUrl ? (
+        <AvatarImage src={person.avatarUrl} alt={person.name} />
+      ) : null}
+      <AvatarFallback className={fallbackClassName}>
+        {getInitials(person?.name)}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
+function TokenPill({
+  label,
+  onRemove,
+  className,
+}: {
+  label: string
+  onRemove: () => void
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-sm text-foreground/80",
+        className
+      )}
+    >
+      <span className="truncate">{label}</span>
+      <button
+        type="button"
+        className="rounded-full text-muted-foreground transition hover:text-foreground"
+        onClick={onRemove}
+        aria-label={`Remove ${label}`}
+      >
+        <IconX className="size-3.5" />
+      </button>
+    </span>
+  )
+}
+
+export function TicketDrawer({ open, ticket, ...props }: TicketDrawerProps) {
   const [expandedByTicketId, setExpandedByTicketId] = useState<
     Record<string, boolean>
   >({})
-  const isExpanded = ticket ? expandedByTicketId[ticket.id] ?? false : false
+  const isExpanded = ticket ? (expandedByTicketId[ticket.id] ?? false) : false
 
   return (
     <Sheet open={open} onOpenChange={props.onOpenChange}>
@@ -214,9 +234,9 @@ export function TicketDrawer({
         side="right"
         showCloseButton={false}
         className={cn(
-          "data-[side=right]:top-0 data-[side=right]:right-0 data-[side=right]:bottom-0 data-[side=right]:h-dvh data-[side=right]:w-screen data-[side=right]:rounded-none data-[side=right]:border-l data-[side=right]:border-border/70 p-0 sm:data-[side=right]:top-3 sm:data-[side=right]:right-3 sm:data-[side=right]:bottom-3 sm:data-[side=right]:h-[calc(100dvh-1.5rem)] sm:data-[side=right]:max-w-none sm:data-[side=right]:w-[min(calc(100vw-1.5rem),clamp(32rem,34vw,44rem))] sm:data-[side=right]:rounded-[28px] sm:data-[side=right]:border sm:shadow-2xl",
+          "p-0 data-[side=right]:top-0 data-[side=right]:right-0 data-[side=right]:bottom-0 data-[side=right]:h-dvh data-[side=right]:w-screen data-[side=right]:rounded-none data-[side=right]:border-l data-[side=right]:border-border/70 sm:shadow-2xl sm:data-[side=right]:top-3 sm:data-[side=right]:right-3 sm:data-[side=right]:bottom-3 sm:data-[side=right]:h-[calc(100dvh-1.5rem)] sm:data-[side=right]:w-[min(calc(100vw-1.5rem),clamp(34rem,36vw,46rem))] sm:data-[side=right]:max-w-none sm:data-[side=right]:rounded-[28px] sm:data-[side=right]:border",
           isExpanded &&
-            "lg:data-[side=right]:w-[min(calc(100vw-2rem),clamp(44rem,46vw,60rem))]"
+            "lg:data-[side=right]:w-[min(calc(100vw-2rem),clamp(60rem,72vw,78rem))]"
         )}
       >
         {ticket ? (
@@ -239,23 +259,32 @@ export function TicketDrawer({
 }
 
 function TicketDrawerPanel({
+  mode,
   ticket,
   isExpanded,
   onExpandedChange,
   assigneeOptions,
+  peopleOptions,
   draftMessage,
+  replyFromAddress,
   onDraftMessageChange,
   onOpenChange,
   onUpdateTicket,
   onSubmitMessage,
+  onReplyFromAddressChange,
 }: Omit<TicketDrawerProps, "open" | "ticket"> & {
   ticket: Ticket
   isExpanded: boolean
   onExpandedChange: (nextExpanded: boolean) => void
 }) {
-  const [isSummaryCollapsed, setIsSummaryCollapsed] = useState(false)
+  const router = useRouter()
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const [macroQuery, setMacroQuery] = useState("")
+  const [tagInputValue, setTagInputValue] = useState("")
 
-  const triageSummary = useMemo(() => buildTriageSummary(ticket), [ticket])
+  const updateTicket = (updater: (currentTicket: Ticket) => Ticket) => {
+    onUpdateTicket(ticket.id, updater)
+  }
 
   const sortedAssigneeOptions = useMemo(() => {
     const nextOptions = [...assigneeOptions]
@@ -264,68 +293,122 @@ function TicketDrawerPanel({
       nextOptions.unshift({
         name: currentUser.name,
         avatarUrl: currentUser.avatar,
+        email: currentUser.email,
       })
     }
 
-    return nextOptions.sort((left, right) => left.name.localeCompare(right.name))
+    return nextOptions.sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )
   }, [assigneeOptions])
 
-  const updateTicket = (updater: (currentTicket: Ticket) => Ticket) => {
-    onUpdateTicket(ticket.id, updater)
-  }
+  const sortedPeopleOptions = useMemo(() => {
+    const nextOptions = [...peopleOptions]
 
-  const handleAssignToMe = () => {
-    updateTicket((currentTicket) => ({
-      ...currentTicket,
-      assignee: {
+    if (!nextOptions.some((person) => person.name === currentUser.name)) {
+      nextOptions.unshift({
         name: currentUser.name,
         avatarUrl: currentUser.avatar,
-      },
-      mine: true,
-    }))
-  }
+        email: currentUser.email,
+      })
+    }
 
-  const handleResolve = () => {
+    return nextOptions.sort((left, right) =>
+      left.name.localeCompare(right.name)
+    )
+  }, [peopleOptions])
+
+  const selectedReplyFromAddress = replyFromAddress ?? currentUser.email
+  const selectedReplyAccount =
+    replyFromAccounts.find(
+      (account) => account.address === selectedReplyFromAddress
+    ) ?? replyFromAccounts[0]
+  const normalizedPriority = normalizePriority(ticket.priority)
+  const selectedAssigneeValue = ticket.assignee?.name ?? noAssigneeValue
+  const selectedRequesterValue = ticket.requester?.name ?? noRequesterValue
+  const followers = ticket.followers ?? []
+  const tags = ticket.tags ?? []
+  const availableFollowers = sortedPeopleOptions.filter(
+    (person) =>
+      person.name !== ticket.requester?.name &&
+      !followers.some((follower) => follower.name === person.name)
+  )
+  const filteredMacros = macroOptions.filter((macro) =>
+    macro.toLowerCase().includes(macroQuery.trim().toLowerCase())
+  )
+
+  const commitTagInput = () => {
+    const nextTag = tagInputValue.trim()
+    if (!nextTag || tags.includes(nextTag)) return
+
     updateTicket((currentTicket) => ({
       ...currentTicket,
-      queueStatus: "resolved",
+      tags: [...(currentTicket.tags ?? []), nextTag],
     }))
+    setTagInputValue("")
   }
 
+  const insertComposerSnippet = ({
+    before = "",
+    after = "",
+    placeholder = "",
+  }: {
+    before?: string
+    after?: string
+    placeholder?: string
+  }) => {
+    const field = composerRef.current
+
+    if (!field) {
+      onDraftMessageChange(`${draftMessage}${before}${placeholder}${after}`)
+      return
+    }
+
+    const selectionStart = field.selectionStart ?? draftMessage.length
+    const selectionEnd = field.selectionEnd ?? draftMessage.length
+    const selectedText = draftMessage.slice(selectionStart, selectionEnd)
+    const insertedText = `${before}${selectedText || placeholder}${after}`
+    const nextDraft = `${draftMessage.slice(0, selectionStart)}${insertedText}${draftMessage.slice(selectionEnd)}`
+
+    onDraftMessageChange(nextDraft)
+
+    requestAnimationFrame(() => {
+      const nextCursorPosition =
+        selectedText.length > 0
+          ? selectionStart + insertedText.length
+          : selectionStart + before.length + placeholder.length
+
+      field.focus()
+      field.setSelectionRange(nextCursorPosition, nextCursorPosition)
+    })
+  }
+
+  const panelTitle =
+    mode === "create"
+      ? "Create New Ticket"
+      : ticket.subject.trim() || "Untitled ticket"
+  const panelSubtitle = ticket.ticketNumber
+  const primaryActionLabel = mode === "create" ? "Submit as New" : "Send Reply"
+  const primaryActionDisabled =
+    mode === "create"
+      ? ticket.subject.trim().length === 0
+      : draftMessage.trim().length === 0
+
   return (
-    <div
-      className="flex h-full flex-col overflow-hidden bg-background/95 backdrop-blur-xl"
-    >
+    <div className="flex h-full flex-col overflow-hidden bg-background">
       <header className="sticky top-0 z-20 border-b border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/60 text-foreground shadow-sm">
-              <IconTicket className="size-5" />
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground ring-1 ring-foreground/15">
+              <IconTicket className="size-4" />
             </div>
-            <div className="min-w-0">
-              <div className="mb-1 flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
-                  {ticket.ticketNumber}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 text-xs font-medium text-foreground">
-                  {getStatusIcon(ticket.queueStatus)}
-                  {statusLabel[ticket.queueStatus]}
-                </span>
-                <TicketTag tone={ticket.health} className="h-6" />
-                {ticket.escalated ? (
-                  <span className="rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-medium text-rose-600 dark:text-rose-300">
-                    Escalated
-                  </span>
-                ) : null}
-                {ticket.pastDue ? (
-                  <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
-                    Past due
-                  </span>
-                ) : null}
-              </div>
-              <SheetTitle className="line-clamp-2 text-[1.05rem] leading-7 font-semibold text-foreground">
-                {ticket.subject}
+            <div className="flex min-w-0 items-center gap-2">
+              <SheetTitle className="truncate text-xl font-semibold text-foreground">
+                {panelTitle}
               </SheetTitle>
+              <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                {panelSubtitle}
+              </span>
             </div>
           </div>
 
@@ -334,11 +417,15 @@ function TicketDrawerPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="rounded-2xl"
+              className="rounded-full text-muted-foreground"
               aria-label={isExpanded ? "Collapse drawer" : "Expand drawer"}
               onClick={() => onExpandedChange(!isExpanded)}
             >
-              <IconExternalLink className="size-4" />
+              {isExpanded ? (
+                <IconExternalLink className="size-4 rotate-180" />
+              ) : (
+                <IconExternalLink className="size-4" />
+              )}
             </Button>
 
             <DropdownMenu>
@@ -348,7 +435,7 @@ function TicketDrawerPanel({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="rounded-2xl"
+                    className="rounded-full text-muted-foreground"
                     aria-label="More ticket actions"
                   />
                 }
@@ -356,22 +443,34 @@ function TicketDrawerPanel({
                 <IconDots className="size-4" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-52">
-                <DropdownMenuItem onClick={handleAssignToMe}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    updateTicket((currentTicket) => ({
+                      ...currentTicket,
+                      assignee: {
+                        name: currentUser.name,
+                        avatarUrl: currentUser.avatar,
+                        email: currentUser.email,
+                      },
+                      mine: true,
+                    }))
+                  }
+                >
                   Assign to me
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleResolve}>
-                  Resolve ticket
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
                     updateTicket((currentTicket) => ({
                       ...currentTicket,
-                      assignee: undefined,
-                      mine: false,
+                      tags: [],
+                      followers: [],
                     }))
                   }
                 >
-                  Unassign
+                  Clear tags and followers
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.push("/accounts")}>
+                  Manage accounts
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -380,7 +479,7 @@ function TicketDrawerPanel({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className="rounded-2xl"
+              className="rounded-full text-muted-foreground"
               aria-label="Close drawer"
               onClick={() => onOpenChange(false)}
             >
@@ -388,370 +487,616 @@ function TicketDrawerPanel({
             </Button>
           </div>
         </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-2xl"
-            onClick={handleAssignToMe}
-          >
-            Assign to me
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-2xl"
-            onClick={handleResolve}
-          >
-            Resolve
-          </Button>
-        </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        <section className="rounded-[24px] border border-border/70 bg-muted/25 p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <IconSparkles className="size-4 text-muted-foreground" />
-                Triage Summary
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-2xl"
-              aria-label={
-                isSummaryCollapsed ? "Expand triage summary" : "Collapse triage summary"
-              }
-              onClick={() =>
-                setIsSummaryCollapsed((currentValue) => !currentValue)
-              }
-            >
-              <IconChevronDown
-                className={cn(
-                  "size-4 transition-transform",
-                  isSummaryCollapsed && "-rotate-90"
-                )}
-              />
-            </Button>
-          </div>
-
-          {!isSummaryCollapsed ? (
-            <div className="mt-4 space-y-4">
-              <div className="rounded-[20px] border border-border/60 bg-background px-4 py-3">
-                <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
-                  Issue Summary
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div
+          className={cn(
+            "grid h-full min-h-0 grid-cols-1",
+            isExpanded && "lg:grid-cols-[minmax(0,1.1fr)_minmax(20rem,0.9fr)]"
+          )}
+        >
+          <section
+            className={cn(
+              "flex min-h-0 min-h-[14rem] flex-col px-5 py-5",
+              isExpanded
+                ? "order-1 border-b border-border/70 lg:border-r lg:border-b-0"
+                : "order-2 border-t border-border/70"
+            )}
+          >
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div>
+                <div className="text-sm font-semibold text-foreground/80">
+                  Message
                 </div>
-                <p className="mt-2 text-sm leading-6 text-foreground">
-                  {triageSummary.summary}
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[20px] border border-border/60 bg-background px-4 py-3">
-                  <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
-                    Assignee
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {ticket.assignee?.name ?? "Unassigned"}
-                  </p>
-                </div>
-                <div className="rounded-[20px] border border-border/60 bg-background px-4 py-3">
-                  <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
-                    Category
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {categoryLabel[ticket.category]}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-[20px] border border-border/60 bg-background px-4 py-3">
-                <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
-                  Next Step
-                </div>
-                <p className="mt-2 text-sm leading-6 text-foreground">
-                  {triageSummary.nextStep}
-                </p>
-              </div>
-
-              <div className="rounded-[20px] border border-dashed border-border/70 bg-background/80 px-4 py-3">
-                <div className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
-                  Latest Message Preview
-                </div>
-                <p className="mt-2 text-sm leading-6 text-foreground">
-                  {triageSummary.latestPreview}
-                </p>
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="mt-5 space-y-4 rounded-[24px] border border-border/70 bg-card p-4 shadow-sm">
-          <div>
-            <div className="text-sm font-medium text-foreground">Main Content</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Inline ticket metadata updates apply immediately to the current board or table behind the drawer.
-            </p>
-          </div>
-
-          <MetadataField label="Subject">
-            <Input
-              value={ticket.subject}
-              onChange={(event) => {
-                const nextSubject = event.target.value
-                updateTicket((currentTicket) => ({
-                  ...currentTicket,
-                  subject: nextSubject,
-                }))
-              }}
-              className="h-11 rounded-2xl border-border/70 bg-background"
-            />
-          </MetadataField>
-
-          <MetadataField label="Status">
-            <div className="grid grid-cols-2 gap-2 rounded-[22px] border border-border/70 bg-muted/25 p-1 sm:grid-cols-4">
-              {statusOptions.map((status) => {
-                const isActive = ticket.queueStatus === status
-
-                return (
-                  <Button
-                    key={status}
-                    type="button"
-                    variant={isActive ? "secondary" : "ghost"}
-                    size="sm"
-                    className={cn(
-                      "justify-start rounded-[18px] px-3",
-                      !isActive && "text-muted-foreground"
-                    )}
-                    onClick={() =>
-                      updateTicket((currentTicket) => ({
-                        ...currentTicket,
-                        queueStatus: status,
-                      }))
-                    }
-                  >
-                    {getStatusIcon(status)}
-                    {statusLabel[status]}
-                  </Button>
-                )
-              })}
-            </div>
-          </MetadataField>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <MetadataField label="Priority">
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<SelectFieldButton />}>
-                  <TicketPriorityIndicator priority={ticket.priority} />
-                  <span className="capitalize">{ticket.priority}</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-44">
-                  <DropdownMenuRadioGroup
-                    value={ticket.priority}
-                    onValueChange={(value) =>
-                      updateTicket((currentTicket) => ({
-                        ...currentTicket,
-                        priority: value as TicketPriority,
-                      }))
-                    }
-                  >
-                    {priorityOptions.map((priority) => (
-                      <DropdownMenuRadioItem key={priority} value={priority}>
-                        <span className="inline-flex items-center gap-2">
-                          <TicketPriorityIndicator priority={priority} />
-                          <span className="capitalize">{priority}</span>
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </MetadataField>
-
-            <MetadataField label="Assignee">
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<SelectFieldButton />}>
-                  <Avatar className="size-6 border bg-background" size="sm">
-                    {ticket.assignee?.avatarUrl ? (
-                      <AvatarImage
-                        src={ticket.assignee.avatarUrl}
-                        alt={ticket.assignee.name}
-                      />
-                    ) : null}
-                    <AvatarFallback>{getTicketInitials(ticket)}</AvatarFallback>
-                  </Avatar>
-                  <span className="truncate">
-                    {ticket.assignee?.name ?? "Unassigned"}
-                  </span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-52">
-                  <DropdownMenuItem
-                    onClick={() =>
-                      updateTicket((currentTicket) => ({
-                        ...currentTicket,
-                        assignee: undefined,
-                        mine: false,
-                      }))
-                    }
-                  >
-                    Unassigned
-                  </DropdownMenuItem>
-                  {sortedAssigneeOptions.map((assignee) => (
-                    <DropdownMenuItem
-                      key={assignee.name}
-                      onClick={() =>
-                        updateTicket((currentTicket) => ({
-                          ...currentTicket,
-                          assignee,
-                          mine: assignee.name === currentUser.name,
-                        }))
+                <div className="mt-3 flex items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">From</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="h-10 rounded-xl px-3 font-medium"
+                        />
                       }
                     >
-                      {assignee.name}
+                      {selectedReplyAccount.label}
+                      <IconChevronDown className="size-4 text-muted-foreground" />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-72 p-2">
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="px-2 pb-3 text-base font-semibold text-foreground">
+                          Select account
+                        </DropdownMenuLabel>
+                        <DropdownMenuRadioGroup
+                          value={selectedReplyFromAddress}
+                          onValueChange={(value) =>
+                            onReplyFromAddressChange(ticket.id, value)
+                          }
+                        >
+                          {replyFromAccounts.map((account) => (
+                            <DropdownMenuRadioItem
+                              key={account.address}
+                              value={account.address}
+                              className={cn(
+                                "mb-2 rounded-xl border border-border/70 px-3 py-3",
+                                selectedReplyFromAddress === account.address &&
+                                  "border-primary/40 bg-primary/10 text-foreground"
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate font-medium">
+                                  {account.label}
+                                </div>
+                                <div className="truncate text-xs text-muted-foreground">
+                                  {account.description}
+                                </div>
+                              </div>
+                            </DropdownMenuRadioItem>
+                          ))}
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="rounded-xl px-2 text-sm underline-offset-2 hover:underline"
+                        onClick={() => router.push("/accounts")}
+                      >
+                        Add account
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+
+              <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/70 bg-background">
+                <textarea
+                  ref={composerRef}
+                  rows={3}
+                  value={draftMessage}
+                  onChange={(event) => onDraftMessageChange(event.target.value)}
+                  placeholder="Comment or type '/' for commands"
+                  className="min-h-0 w-full flex-1 resize-none bg-transparent px-4 py-3 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70"
+                />
+
+                <div className="border-t border-border/70 px-3 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-lg text-muted-foreground"
+                      aria-label="Format"
+                      onClick={() =>
+                        insertComposerSnippet({
+                          before: "**",
+                          after: "**",
+                          placeholder: "highlight",
+                        })
+                      }
+                    >
+                      <span className="text-base font-medium">T</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-lg text-muted-foreground"
+                      aria-label="Emoji"
+                      onClick={() =>
+                        insertComposerSnippet({ placeholder: "🙂" })
+                      }
+                    >
+                      <IconMoodSmile className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-lg text-muted-foreground"
+                      aria-label="Attachment"
+                      disabled
+                    >
+                      <IconPaperclip className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-lg text-muted-foreground"
+                      aria-label="Voice note"
+                      disabled
+                    >
+                      <IconMicrophone className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-lg text-muted-foreground"
+                      aria-label="Link"
+                      onClick={() =>
+                        insertComposerSnippet({
+                          before: "[",
+                          after: "](https://)",
+                          placeholder: "link text",
+                        })
+                      }
+                    >
+                      <IconLink className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-lg text-muted-foreground"
+                      aria-label="Image"
+                      onClick={() =>
+                        insertComposerSnippet({
+                          before: "![",
+                          after: "](https://)",
+                          placeholder: "image alt",
+                        })
+                      }
+                    >
+                      <IconPhoto className="size-4" />
+                    </Button>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="ml-1 h-9 rounded-xl px-3 text-sm font-medium"
+                          />
+                        }
+                      >
+                        Macros
+                        <IconChevronDown className="size-4 text-muted-foreground" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="start"
+                        className="w-[19rem] rounded-2xl p-0"
+                      >
+                        <div className="border-b border-border/70 px-4 py-3">
+                          <div className="text-sm font-semibold text-foreground">
+                            Add Macros
+                          </div>
+                          <div className="relative mt-3">
+                            <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                              value={macroQuery}
+                              onChange={(event) =>
+                                setMacroQuery(event.target.value)
+                              }
+                              placeholder="Search macros"
+                              className="h-10 rounded-xl border-border/70 pl-9"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto px-2 py-2">
+                          <div className="px-2 py-2 text-xs font-medium text-muted-foreground">
+                            General greetings
+                          </div>
+                          {filteredMacros.map((macro) => (
+                            <button
+                              key={macro}
+                              type="button"
+                              className="w-full rounded-xl px-2 py-2 text-left text-sm text-foreground/80 transition hover:bg-muted"
+                              onClick={() =>
+                                onDraftMessageChange(
+                                  [draftMessage.trim(), macro]
+                                    .filter(Boolean)
+                                    .join("\n\n")
+                                )
+                              }
+                            >
+                              {macro}
+                            </button>
+                          ))}
+                        </div>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section
+            className={cn(
+              "relative min-h-0 overflow-y-auto px-5 py-5",
+              isExpanded ? "order-2" : "order-1"
+            )}
+          >
+            <div className="space-y-5">
+              <MetadataField label="Ticket Name">
+                <Input
+                  value={ticket.subject}
+                  onChange={(event) =>
+                    updateTicket((currentTicket) => ({
+                      ...currentTicket,
+                      subject: event.target.value,
+                    }))
+                  }
+                  placeholder="My suggestion for this product"
+                  className="h-12 rounded-xl border-border/70 bg-background"
+                />
+              </MetadataField>
+
+              <MetadataField label="Priority">
+                <div className="grid grid-cols-3 gap-2">
+                  {priorityOptions.map((priorityOption) => {
+                    const isActive = normalizedPriority === priorityOption.value
+
+                    return (
+                      <Button
+                        key={priorityOption.value}
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "h-12 rounded-xl border-border/70 bg-background font-medium text-foreground/70",
+                          isActive &&
+                            "border-primary/40 bg-primary/10 text-foreground"
+                        )}
+                        onClick={() =>
+                          updateTicket((currentTicket) => ({
+                            ...currentTicket,
+                            priority: priorityOption.value,
+                          }))
+                        }
+                      >
+                        <span
+                          className={cn(
+                            "size-2 rounded-full",
+                            priorityOption.dotClassName
+                          )}
+                        />
+                        {priorityOption.label}
+                      </Button>
+                    )
+                  })}
+                </div>
+              </MetadataField>
+
+              <MetadataField label="Ticket Type">
+                <Select
+                  value={ticket.ticketType ?? "incident"}
+                  onValueChange={(value) =>
+                    updateTicket((currentTicket) => ({
+                      ...currentTicket,
+                      ticketType: value as TicketType,
+                    }))
+                  }
+                >
+                  <FieldSelectTrigger>
+                    <span>
+                      {
+                        ticketTypeOptions.find(
+                          (option) =>
+                            option.value === (ticket.ticketType ?? "incident")
+                        )?.label
+                      }
+                    </span>
+                  </FieldSelectTrigger>
+                  <SelectContent align="start" className="min-w-48">
+                    {ticketTypeOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </MetadataField>
+
+              <div
+                className={cn(
+                  "grid gap-4",
+                  isExpanded ? "grid-cols-1" : "sm:grid-cols-2"
+                )}
+              >
+                <MetadataField label="Requester">
+                  <Select
+                    value={selectedRequesterValue}
+                    onValueChange={(value) => {
+                      if (value === noRequesterValue) {
+                        updateTicket((currentTicket) => ({
+                          ...currentTicket,
+                          requester: undefined,
+                        }))
+                        return
+                      }
+
+                      const nextRequester = sortedPeopleOptions.find(
+                        (person) => person.name === value
+                      )
+                      if (!nextRequester) return
+
+                      updateTicket((currentTicket) => ({
+                        ...currentTicket,
+                        requester: nextRequester,
+                      }))
+                    }}
+                  >
+                    <FieldSelectTrigger>
+                      {ticket.requester ? (
+                        <>
+                          <PersonAvatar person={ticket.requester} />
+                          <span className="truncate">
+                            {ticket.requester.name}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Select requester
+                        </span>
+                      )}
+                    </FieldSelectTrigger>
+                    <SelectContent align="start" className="min-w-52">
+                      <SelectItem value={noRequesterValue}>
+                        Select requester
+                      </SelectItem>
+                      {sortedPeopleOptions.map((person) => (
+                        <SelectItem key={person.name} value={person.name}>
+                          <PersonAvatar person={person} />
+                          <span>{person.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </MetadataField>
+
+                <MetadataField label="Assignee">
+                  <Select
+                    value={selectedAssigneeValue}
+                    onValueChange={(value) => {
+                      if (value === noAssigneeValue) {
+                        updateTicket((currentTicket) => ({
+                          ...currentTicket,
+                          assignee: undefined,
+                          mine: false,
+                        }))
+                        return
+                      }
+
+                      const nextAssignee = sortedAssigneeOptions.find(
+                        (assignee) => assignee.name === value
+                      )
+                      if (!nextAssignee) return
+
+                      updateTicket((currentTicket) => ({
+                        ...currentTicket,
+                        assignee: nextAssignee,
+                        mine: nextAssignee.name === currentUser.name,
+                      }))
+                    }}
+                  >
+                    <FieldSelectTrigger>
+                      {ticket.assignee ? (
+                        <>
+                          <PersonAvatar person={ticket.assignee} />
+                          <span className="truncate">
+                            {ticket.assignee.name}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Select assignee
+                        </span>
+                      )}
+                    </FieldSelectTrigger>
+                    <SelectContent align="start" className="min-w-52">
+                      <SelectItem value={noAssigneeValue}>
+                        Select assignee
+                      </SelectItem>
+                      {sortedAssigneeOptions.map((assignee) => (
+                        <SelectItem key={assignee.name} value={assignee.name}>
+                          <PersonAvatar person={assignee} />
+                          <span>{assignee.name}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </MetadataField>
+              </div>
+
+              <MetadataField label="Tags">
+                <div className="min-h-28 rounded-xl border border-border/70 bg-background px-3 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => (
+                      <TokenPill
+                        key={tag}
+                        label={tag}
+                        onRemove={() =>
+                          updateTicket((currentTicket) => ({
+                            ...currentTicket,
+                            tags: (currentTicket.tags ?? []).filter(
+                              (currentTag) => currentTag !== tag
+                            ),
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <IconTag className="size-4 text-muted-foreground" />
+                    <input
+                      value={tagInputValue}
+                      onChange={(event) => setTagInputValue(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === ",") {
+                          event.preventDefault()
+                          commitTagInput()
+                        }
+                      }}
+                      onBlur={commitTagInput}
+                      placeholder="Add tags"
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                </div>
+              </MetadataField>
+
+              <MetadataField label="Followers">
+                <div className="min-h-24 rounded-xl border border-border/70 bg-background px-3 py-3">
+                  <div className="flex flex-wrap gap-2">
+                    {followers.map((follower) => (
+                      <TokenPill
+                        key={follower.name}
+                        label={follower.name}
+                        onRemove={() =>
+                          updateTicket((currentTicket) => ({
+                            ...currentTicket,
+                            followers: (currentTicket.followers ?? []).filter(
+                              (currentFollower) =>
+                                currentFollower.name !== follower.name
+                            ),
+                          }))
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="mt-3 h-9 rounded-lg px-0 text-muted-foreground"
+                        />
+                      }
+                    >
+                      <IconUser className="size-4" />
+                      {availableFollowers.length > 0
+                        ? "Add followers"
+                        : "No more followers"}
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="min-w-52">
+                      {availableFollowers.length === 0 ? (
+                        <DropdownMenuItem disabled>
+                          Everyone is already added
+                        </DropdownMenuItem>
+                      ) : (
+                        availableFollowers.map((person) => (
+                          <DropdownMenuItem
+                            key={person.name}
+                            onClick={() =>
+                              updateTicket((currentTicket) => ({
+                                ...currentTicket,
+                                followers: [
+                                  ...(currentTicket.followers ?? []),
+                                  person,
+                                ],
+                              }))
+                            }
+                          >
+                            <PersonAvatar person={person} />
+                            <span>{person.name}</span>
+                          </DropdownMenuItem>
+                        ))
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </MetadataField>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <footer className="sticky bottom-0 z-20 border-t border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl">
+        <div className="flex items-center justify-end gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            className="rounded-xl"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+
+          {mode === "create" ? (
+            <Button
+              type="button"
+              disabled={primaryActionDisabled}
+              onClick={() => onSubmitMessage(ticket.id)}
+            >
+              {primaryActionLabel}
+            </Button>
+          ) : (
+            <div
+              className={cn(
+                "btn-primary-chrome inline-flex items-center overflow-hidden rounded-xl bg-primary text-primary-foreground",
+                primaryActionDisabled &&
+                  "pointer-events-none opacity-60 saturate-75"
+              )}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-none border-none bg-transparent px-4 text-inherit shadow-none hover:!bg-white/22 hover:text-inherit disabled:opacity-100 aria-expanded:!bg-white/22"
+                disabled={primaryActionDisabled}
+                onClick={() => onSubmitMessage(ticket.id)}
+              >
+                {primaryActionLabel}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="rounded-none border-0 border-l border-primary-foreground/15 bg-transparent text-inherit shadow-none hover:!bg-white/22 hover:text-inherit disabled:opacity-100 aria-expanded:!bg-white/22"
+                      aria-label="More reply actions"
+                      disabled={primaryActionDisabled}
+                    />
+                  }
+                >
+                  <IconChevronDown className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-64">
+                  {replyActionOptions.map((option) => (
+                    <DropdownMenuItem
+                      key={option.action}
+                      onClick={() => onSubmitMessage(ticket.id, option.action)}
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">
+                          {option.label}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {option.description}
+                        </div>
+                      </div>
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-            </MetadataField>
-
-            <MetadataField label="Category">
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<SelectFieldButton />}>
-                  <span>{categoryLabel[ticket.category]}</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-44">
-                  <DropdownMenuRadioGroup
-                    value={ticket.category}
-                    onValueChange={(value) =>
-                      updateTicket((currentTicket) => ({
-                        ...currentTicket,
-                        category: value as TicketCategoryKey,
-                      }))
-                    }
-                  >
-                    {categoryOptions.map((category) => (
-                      <DropdownMenuRadioItem key={category} value={category}>
-                        {categoryLabel[category]}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </MetadataField>
-
-            <MetadataField label="Channel">
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<SelectFieldButton />}>
-                  {getChannelIcon(ticket.channel)}
-                  <span>{channelLabel[ticket.channel]}</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="min-w-44">
-                  <DropdownMenuRadioGroup
-                    value={ticket.channel}
-                    onValueChange={(value) =>
-                      updateTicket((currentTicket) => ({
-                        ...currentTicket,
-                        channel: value as TicketChannel,
-                      }))
-                    }
-                  >
-                    {channelOptions.map((channel) => (
-                      <DropdownMenuRadioItem key={channel} value={channel}>
-                        <span className="inline-flex items-center gap-2">
-                          {getChannelIcon(channel)}
-                          <span>{channelLabel[channel]}</span>
-                        </span>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </MetadataField>
-          </div>
-        </section>
-      </div>
-
-      <footer className="sticky bottom-0 z-20 border-t border-border/70 bg-background/95 px-5 py-4 backdrop-blur-xl">
-        <div className="rounded-[24px] border border-border/70 bg-card p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium text-foreground">Message</div>
-              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                <span>From</span>
-                <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-foreground">
-                  {currentUser.email}
-                </span>
-              </div>
             </div>
-          </div>
-
-          <textarea
-            value={draftMessage}
-            onChange={(event) => onDraftMessageChange(event.target.value)}
-            placeholder="Write the next customer-facing reply or internal context here..."
-            className="mt-4 min-h-32 w-full resize-none rounded-[20px] border border-border/70 bg-background px-4 py-3 text-sm leading-6 outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-          />
-
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-2xl"
-            >
-              <IconMoodSmile className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-2xl"
-            >
-              <IconPaperclip className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-2xl"
-            >
-              <IconLink className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-2xl"
-            >
-              <IconPhoto className="size-4" />
-            </Button>
-          </div>
-
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() => onOpenChange(false)}
-            >
-              Close
-            </Button>
-            <Button
-              type="button"
-              className="rounded-2xl"
-              disabled={draftMessage.trim().length === 0}
-              onClick={() => onSubmitMessage(ticket.id)}
-            >
-              Send reply
-            </Button>
-          </div>
+          )}
         </div>
       </footer>
     </div>
