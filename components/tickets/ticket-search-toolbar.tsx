@@ -58,32 +58,32 @@ export function TicketSearchToolbar({
   tableActions,
 }: TicketSearchToolbarProps) {
   return (
-    <section className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <section className="flex flex-col gap-3 max-sm:gap-2 lg:flex-row lg:items-center lg:justify-between">
       <div className="relative w-full max-w-md">
         <IconSearch className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
           placeholder="Search tickets by subject, customer, or ID..."
-          className="h-10 rounded-xl border bg-background pl-9"
+          className="h-10 rounded-xl border bg-background pl-9 max-sm:h-9 max-sm:text-sm"
         />
       </div>
 
-      <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+      <div className="flex w-full items-center gap-2 max-sm:overflow-x-auto max-sm:whitespace-nowrap max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden lg:w-auto lg:justify-end">
         {tableActions ? (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {tableActions}
           </div>
         ) : null}
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex shrink-0 items-center gap-2 max-sm:ml-0">
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 rounded-xl"
+                  className="h-9 rounded-xl max-sm:h-8 max-sm:px-2.5"
                 />
               }
             >
@@ -102,12 +102,12 @@ export function TicketSearchToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="flex items-center gap-1 rounded-xl border bg-background p-1">
+          <div className="flex items-center gap-1 rounded-xl border bg-background p-1 max-sm:gap-0.5 max-sm:p-0.5">
             <Button
               variant="ghost"
               size="icon-sm"
               className={cn(
-                "size-7 rounded-lg",
+                "size-7 rounded-lg max-sm:size-[26px]",
                 layoutMode === "board" && "bg-muted/70"
               )}
               aria-label="Board view"
@@ -119,7 +119,7 @@ export function TicketSearchToolbar({
               variant="ghost"
               size="icon-sm"
               className={cn(
-                "size-7 rounded-lg",
+                "size-7 rounded-lg max-sm:size-[26px]",
                 layoutMode === "table" && "bg-muted/70"
               )}
               aria-label="Table view"

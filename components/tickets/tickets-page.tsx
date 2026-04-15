@@ -1,12 +1,11 @@
 "use client"
 
-import { startTransition, useEffect, useMemo, useRef, useState } from "react"
+import { startTransition, useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   IconArrowsSort,
   IconChevronDown,
   IconDownload,
-  IconDots,
   IconPlus,
 } from "@tabler/icons-react"
 
@@ -16,6 +15,18 @@ import {
 } from "@/components/data-grid"
 import { TicketBoard } from "@/components/tickets/ticket-board"
 import { TicketDrawer } from "@/components/tickets/ticket-drawer"
+import {
+  bulkPriorityOptions,
+  bulkStatusLabel,
+  bulkStatusOptions,
+  buildStats,
+  createDraftTicket,
+  getLayoutFromSearchParam,
+  getNextTicketSequence,
+  getViewFromSearchParam,
+  NEW_TICKET_ID,
+  sortTicketsByBoardOrder,
+} from "@/components/tickets/tickets-page-helpers"
 import { TicketSearchToolbar } from "@/components/tickets/ticket-search-toolbar"
 import { TicketStats } from "@/components/tickets/ticket-stats"
 import {
@@ -46,186 +57,10 @@ import type {
   Ticket,
   TicketDrawerOrigin,
   TicketPerson,
-  TicketPriority,
   TicketQueueStatus,
-  TicketStat,
   TicketSubmitAction,
-  TicketTrend,
-  TicketViewKey,
 } from "@/lib/tickets/types"
 import { useIsMobile } from "@/hooks/use-mobile"
-
-const ALLOWED_VIEWS: TicketViewKey[] = [
-  "all",
-  "mine",
-  "unassigned",
-  "past-due",
-  "escalated",
-]
-
-const ALLOWED_LAYOUTS: TicketLayoutMode[] = ["board", "table"]
-const bulkStatusOptions: TicketQueueStatus[] = [
-  "open",
-  "pending",
-  "resolved",
-  "closed",
-]
-const bulkPriorityOptions: TicketPriority[] = [
-  "urgent",
-  "high",
-  "medium",
-  "low",
-  "todo",
-]
-const bulkStatusLabel: Record<TicketQueueStatus, string> = {
-  open: "Open",
-  pending: "Pending",
-  resolved: "Resolved",
-  closed: "Closed",
-}
-const NEW_TICKET_ID = "__new-ticket__"
-
-function createDraftTicket(nextIndex: number): Ticket {
-  const paddedIndex = String(nextIndex).padStart(3, "0")
-
-  return {
-    id: NEW_TICKET_ID,
-    ticketNumber: `#-${paddedIndex}`,
-    subject: "",
-    queueStatus: "open",
-    boardOrder: 0,
-    health: "on-track",
-    channel: "email",
-    trend: "flat",
-    requester: undefined,
-    assignee: {
-      name: currentUser.name,
-      avatarUrl: currentUser.avatar,
-      email: currentUser.email,
-    },
-    followers: [],
-    tags: [],
-    ticketType: "incident",
-    category: "other",
-    priority: "medium",
-    mine: true,
-    escalated: false,
-    pastDue: false,
-  }
-}
-
-function getNextTicketSequence(sourceTickets: Ticket[]) {
-  return (
-    sourceTickets.reduce((maxValue, ticket) => {
-      const numericPart = Number(ticket.id.replace(/[^\d]/g, ""))
-      return Number.isFinite(numericPart)
-        ? Math.max(maxValue, numericPart)
-        : maxValue
-    }, 0) + 1
-  )
-}
-
-function getViewFromSearchParam(view: string | null): TicketViewKey {
-  if (view && ALLOWED_VIEWS.includes(view as TicketViewKey)) {
-    return view as TicketViewKey
-  }
-
-  return "all"
-}
-
-function getLayoutFromSearchParam(layout: string | null): TicketLayoutMode {
-  if (layout && ALLOWED_LAYOUTS.includes(layout as TicketLayoutMode)) {
-    return layout as TicketLayoutMode
-  }
-
-  return "board"
-}
-
-function calculateTrend(
-  current: number,
-  previous: number
-): Pick<TicketStat, "delta" | "deltaPercent" | "trend"> {
-  const delta = current - previous
-  const deltaPercent =
-    previous === 0
-      ? current === 0
-        ? 0
-        : 100
-      : Number(((delta / previous) * 100).toFixed(1))
-  const trend: TicketTrend = delta > 0 ? "up" : delta < 0 ? "down" : "flat"
-
-  return { delta, deltaPercent, trend }
-}
-
-function buildStats(sourceTickets: typeof initialTickets): TicketStat[] {
-  const total = sourceTickets.length
-  const open = sourceTickets.filter(
-    (ticket) => ticket.queueStatus === "open"
-  ).length
-  const pending = sourceTickets.filter(
-    (ticket) => ticket.queueStatus === "pending"
-  ).length
-  const resolved = sourceTickets.filter(
-    (ticket) => ticket.queueStatus === "resolved"
-  ).length
-
-  const previousByKey = {
-    total: Math.max(total - 3, 0),
-    open: Math.max(open + 2, 0),
-    pending: Math.max(pending + 1, 0),
-    resolved: Math.max(resolved - 2, 0),
-  }
-
-  const totalTrend = calculateTrend(total, previousByKey.total)
-  const openTrend = calculateTrend(open, previousByKey.open)
-  const pendingTrend = calculateTrend(pending, previousByKey.pending)
-  const resolvedTrend = calculateTrend(resolved, previousByKey.resolved)
-
-  return [
-    {
-      key: "total",
-      label: "Total Tickets",
-      value: total,
-      previousValue: previousByKey.total,
-      ...totalTrend,
-      comparison: "vs last week",
-    },
-    {
-      key: "open",
-      label: "Open",
-      value: open,
-      previousValue: previousByKey.open,
-      ...openTrend,
-      comparison: "vs last week",
-    },
-    {
-      key: "pending",
-      label: "Pending",
-      value: pending,
-      previousValue: previousByKey.pending,
-      ...pendingTrend,
-      comparison: "vs last week",
-    },
-    {
-      key: "resolved",
-      label: "Resolved",
-      value: resolved,
-      previousValue: previousByKey.resolved,
-      ...resolvedTrend,
-      comparison: "vs last week",
-    },
-  ]
-}
-
-function sortTicketsByBoardOrder(sourceTickets: Ticket[]) {
-  return [...sourceTickets].sort((leftTicket, rightTicket) => {
-    if (leftTicket.boardOrder === rightTicket.boardOrder) {
-      return leftTicket.id.localeCompare(rightTicket.id)
-    }
-
-    return leftTicket.boardOrder - rightTicket.boardOrder
-  })
-}
 
 type TicketsPageProps = {
   initialView?: string | null
@@ -271,49 +106,10 @@ export function TicketsPage({
   )
   const [isDiscardDraftDialogOpen, setIsDiscardDraftDialogOpen] =
     useState(false)
-  const [isFabVisible, setIsFabVisible] = useState(true)
-  const lastScrollYRef = useRef(0)
 
   useEffect(() => {
     setActiveLayout(resolvedLayout)
   }, [resolvedLayout])
-
-  useEffect(() => {
-    if (!isMobile) return
-
-    const hasOpenDrawer = activeTicketId !== null
-    if (hasOpenDrawer) {
-      setIsFabVisible(false)
-      return
-    }
-
-    setIsFabVisible(true)
-    lastScrollYRef.current = window.scrollY
-
-    let ticking = false
-    const onScroll = () => {
-      if (ticking) return
-      ticking = true
-
-      requestAnimationFrame(() => {
-        const currentY = window.scrollY
-        const delta = currentY - lastScrollYRef.current
-        const isNearTop = currentY < 40
-
-        if (isNearTop || delta < -6) {
-          setIsFabVisible(true)
-        } else if (delta > 10 && currentY > 96) {
-          setIsFabVisible(false)
-        }
-
-        lastScrollYRef.current = currentY
-        ticking = false
-      })
-    }
-
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [activeTicketId, isMobile])
 
   const handleLayoutModeChange = (layoutMode: TicketLayoutMode) => {
     if (layoutMode === activeLayout) return
@@ -721,13 +517,13 @@ export function TicketsPage({
   }
 
   return (
-    <div className="space-y-4">
-      <section className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl leading-tight font-semibold tracking-tight text-foreground sm:text-3xl">
+    <div className="space-y-4 max-sm:space-y-3">
+      <section className="flex items-center justify-between gap-2 max-sm:py-1">
+        <h1 className="min-w-0 text-xl leading-tight font-semibold tracking-tight text-foreground max-sm:text-lg max-sm:leading-6 sm:text-3xl">
           Tickets
         </h1>
 
-        <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+        <div className="flex shrink-0 items-center gap-2 max-sm:gap-1.5">
           <div className="hidden items-center gap-2 sm:flex">
             <Button variant="outline" size="sm" className="h-9 rounded-xl">
               <IconDownload className="size-4" />
@@ -760,34 +556,35 @@ export function TicketsPage({
             </Button>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-9 rounded-xl sm:hidden"
-                  aria-label="Ticket actions"
-                />
-              }
+          <div className="flex items-center gap-2 sm:hidden">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              className="size-9 rounded-xl max-sm:size-8"
+              aria-label="Export tickets"
             >
-              <IconDots className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-44 sm:hidden">
-              <DropdownMenuItem>
-                <IconDownload className="size-4" />
-                Export
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  setIsStatsExpanded((previousValue) => !previousValue)
-                }
-              >
-                <IconChevronDown className="size-4" />
-                {isStatsExpanded ? "Hide metrics" : "Show metrics"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <IconDownload className="size-4" />
+              <span className="sr-only">Export</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-9 rounded-xl max-sm:size-8"
+              onClick={() =>
+                setIsStatsExpanded((previousValue) => !previousValue)
+              }
+              aria-expanded={isStatsExpanded}
+              aria-controls="ticket-metrics"
+              aria-label="Toggle ticket metrics"
+            >
+              <IconChevronDown
+                className={`size-4 transition-transform ${
+                  isStatsExpanded ? "rotate-180" : ""
+                }`}
+              />
+              <span className="sr-only">Toggle ticket metrics</span>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -1012,24 +809,21 @@ export function TicketsPage({
         }}
       />
 
-      {isMobile ? (
+      {isMobile && activeTicket === null ? (
         <Button
           size="icon"
-          className={`fixed right-4 z-40 size-12 rounded-full shadow-lg transition-all duration-200 ${
-            isFabVisible
-              ? "translate-y-0 opacity-100"
-              : "pointer-events-none translate-y-6 opacity-0"
-          }`}
+          className="fixed right-4 z-40 size-11 rounded-full shadow-lg"
           style={{
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
           }}
           onClick={handleCreateTicket}
           aria-label="Create new ticket"
         >
-          <IconPlus className="size-5" />
+          <IconPlus className="size-[18px]" />
           <span className="sr-only">New Ticket</span>
         </Button>
       ) : null}
+
     </div>
   )
 }

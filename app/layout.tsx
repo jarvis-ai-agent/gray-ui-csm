@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import Script from "next/script"
 
@@ -13,6 +14,15 @@ const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
+
+export const metadata: Metadata = {
+  title: {
+    default: "Gray CSM UI",
+    template: "%s | Gray CSM UI",
+  },
+  description:
+    "Open-source CSM workspace UI built with Next.js, TypeScript, Tailwind CSS, and shadcn/ui.",
+}
 
 export default function RootLayout({
   children,
@@ -32,7 +42,10 @@ export default function RootLayout({
     >
       <body>
         {process.env.NODE_ENV === "development" ? (
-          <Script src="https://mcp.figma.com/mcp/html-to-design/capture.js" strategy="afterInteractive" />
+          <Script
+            src="https://mcp.figma.com/mcp/html-to-design/capture.js"
+            strategy="afterInteractive"
+          />
         ) : null}
         <ThemeProvider>
           <TooltipProvider delay={0}>
