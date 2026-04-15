@@ -1,11 +1,12 @@
 "use client"
 
-import { startTransition, useEffect, useMemo, useState } from "react"
+import { startTransition, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
   IconArrowsSort,
   IconChevronDown,
   IconDownload,
+  IconDots,
   IconPlus,
 } from "@tabler/icons-react"
 
@@ -270,10 +271,49 @@ export function TicketsPage({
   )
   const [isDiscardDraftDialogOpen, setIsDiscardDraftDialogOpen] =
     useState(false)
+  const [isFabVisible, setIsFabVisible] = useState(true)
+  const lastScrollYRef = useRef(0)
 
   useEffect(() => {
     setActiveLayout(resolvedLayout)
   }, [resolvedLayout])
+
+  useEffect(() => {
+    if (!isMobile) return
+
+    const hasOpenDrawer = activeTicketId !== null
+    if (hasOpenDrawer) {
+      setIsFabVisible(false)
+      return
+    }
+
+    setIsFabVisible(true)
+    lastScrollYRef.current = window.scrollY
+
+    let ticking = false
+    const onScroll = () => {
+      if (ticking) return
+      ticking = true
+
+      requestAnimationFrame(() => {
+        const currentY = window.scrollY
+        const delta = currentY - lastScrollYRef.current
+        const isNearTop = currentY < 40
+
+        if (isNearTop || delta < -6) {
+          setIsFabVisible(true)
+        } else if (delta > 10 && currentY > 96) {
+          setIsFabVisible(false)
+        }
+
+        lastScrollYRef.current = currentY
+        ticking = false
+      })
+    }
+
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [activeTicketId, isMobile])
 
   const handleLayoutModeChange = (layoutMode: TicketLayoutMode) => {
     if (layoutMode === activeLayout) return
@@ -688,35 +728,66 @@ export function TicketsPage({
         </h1>
 
         <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-          <Button variant="outline" size="sm" className="h-9 rounded-xl">
-            <IconDownload className="size-4" />
-            Export
-          </Button>
-          <Button
-            size="sm"
-            className="h-9 rounded-xl"
-            onClick={handleCreateTicket}
-          >
-            <IconPlus className="size-4" />
-            New Ticket
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-9 rounded-xl"
-            onClick={() =>
-              setIsStatsExpanded((previousValue) => !previousValue)
-            }
-            aria-expanded={isStatsExpanded}
-            aria-controls="ticket-metrics"
-          >
-            <IconChevronDown
-              className={`size-4 transition-transform ${
-                isStatsExpanded ? "rotate-180" : ""
-              }`}
-            />
-            <span className="sr-only">Toggle ticket metrics</span>
-          </Button>
+          <div className="hidden items-center gap-2 sm:flex">
+            <Button variant="outline" size="sm" className="h-9 rounded-xl">
+              <IconDownload className="size-4" />
+              Export
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 rounded-xl"
+              onClick={handleCreateTicket}
+            >
+              <IconPlus className="size-4" />
+              New Ticket
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="size-9 rounded-xl"
+              onClick={() =>
+                setIsStatsExpanded((previousValue) => !previousValue)
+              }
+              aria-expanded={isStatsExpanded}
+              aria-controls="ticket-metrics"
+            >
+              <IconChevronDown
+                className={`size-4 transition-transform ${
+                  isStatsExpanded ? "rotate-180" : ""
+                }`}
+              />
+              <span className="sr-only">Toggle ticket metrics</span>
+            </Button>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 rounded-xl sm:hidden"
+                  aria-label="Ticket actions"
+                />
+              }
+            >
+              <IconDots className="size-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-44 sm:hidden">
+              <DropdownMenuItem>
+                <IconDownload className="size-4" />
+                Export
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  setIsStatsExpanded((previousValue) => !previousValue)
+                }
+              >
+                <IconChevronDown className="size-4" />
+                {isStatsExpanded ? "Hide metrics" : "Show metrics"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </section>
 
@@ -940,6 +1011,25 @@ export function TicketsPage({
           closeTicketImmediately()
         }}
       />
+
+      {isMobile ? (
+        <Button
+          size="icon"
+          className={`fixed right-4 z-40 size-12 rounded-full shadow-lg transition-all duration-200 ${
+            isFabVisible
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-6 opacity-0"
+          }`}
+          style={{
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)",
+          }}
+          onClick={handleCreateTicket}
+          aria-label="Create new ticket"
+        >
+          <IconPlus className="size-5" />
+          <span className="sr-only">New Ticket</span>
+        </Button>
+      ) : null}
     </div>
   )
 }

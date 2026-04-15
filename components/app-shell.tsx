@@ -2,7 +2,12 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { IconBell, IconMessage2, IconSearch } from "@tabler/icons-react"
+import {
+  IconBell,
+  IconDots,
+  IconMessage2,
+  IconSearch,
+} from "@tabler/icons-react"
 
 import { AppSidebar } from "@/components/app-sidebar"
 import { FloatingThemeToggle } from "@/components/floating-theme-toggle"
@@ -15,6 +20,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
 import {
   SidebarInset,
@@ -85,31 +96,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Breadcrumb>
             </div>
 
-            <div className="flex h-9 items-center gap-3">
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-9 rounded-full p-0"
-              >
-                <IconSearch className="size-4" />
-                <span className="sr-only">Search</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-9 rounded-full p-0"
-              >
-                <IconBell className="size-4" />
-                <span className="sr-only">Notifications</span>
-              </Button>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                className="size-9 rounded-full p-0"
-              >
-                <IconMessage2 className="size-4" />
-                <span className="sr-only">Chat</span>
-              </Button>
+            <div className="flex h-9 items-center gap-2 sm:gap-3">
+              <div className="hidden items-center gap-3 sm:flex">
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-9 rounded-full p-0"
+                >
+                  <IconSearch className="size-4" />
+                  <span className="sr-only">Search</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-9 rounded-full p-0"
+                >
+                  <IconBell className="size-4" />
+                  <span className="sr-only">Notifications</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="size-9 rounded-full p-0"
+                >
+                  <IconMessage2 className="size-4" />
+                  <span className="sr-only">Chat</span>
+                </Button>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      className="size-9 rounded-full p-0 sm:hidden"
+                      aria-label="Header actions"
+                    />
+                  }
+                >
+                  <IconDots className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-44 sm:hidden">
+                  <DropdownMenuItem>
+                    <IconSearch className="size-4" />
+                    Search
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <IconBell className="size-4" />
+                    Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <IconMessage2 className="size-4" />
+                    Chat
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <FloatingThemeToggle />
               <Separator
                 orientation="vertical"
