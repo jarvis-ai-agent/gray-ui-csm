@@ -46,6 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const activeRoute = getRouteByPathname(pathname)
   const shellDisplayMode = getShellDisplayMode(pathname)
+  const isTicketsListPage = pathname === "/tickets"
   const [sidebarOpen, setSidebarOpen] = React.useState(true)
 
   React.useEffect(() => {
@@ -72,9 +73,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
     >
       <AppSidebar displayMode={shellDisplayMode} />
-      <SidebarInset>
+      <SidebarInset className="h-svh overflow-hidden">
         {shellDisplayMode === "default" ? (
-          <header className="sticky top-0 flex shrink-0 items-center justify-between gap-4 bg-background p-4">
+          <header className="sticky top-0 z-30 flex shrink-0 items-center justify-between gap-4 bg-background p-4">
             <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -165,7 +166,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             "mx-auto flex min-w-0 w-full flex-1 flex-col overflow-x-hidden",
             shellDisplayMode === "ticket-detail"
               ? "h-svh min-h-0 max-w-none gap-3 overflow-hidden px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 lg:px-8"
-              : "max-w-500 gap-4 p-4 sm:p-6 lg:p-8"
+              : isTicketsListPage
+                ? "max-w-500 min-h-0 gap-4 overflow-hidden p-4 sm:p-6 lg:p-8"
+                : "max-w-500 min-h-0 gap-4 overflow-y-auto p-4 sm:p-6 lg:p-8"
           )}
         >
           {children}

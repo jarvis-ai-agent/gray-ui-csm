@@ -103,6 +103,39 @@ export function useTicketsPageMutations({
     )
   }
 
+  const deleteTicketsByIds = (ticketIds: string[]) => {
+    if (ticketIds.length === 0) return
+    const selectedIds = new Set(ticketIds)
+
+    setTicketItems((previousTickets) =>
+      previousTickets.filter((ticket) => !selectedIds.has(ticket.id))
+    )
+  }
+
+  const restoreTickets = (snapshotTickets: Ticket[]) => {
+    if (snapshotTickets.length === 0) return
+
+    const snapshotMap = new Map(
+      snapshotTickets.map((ticket) => [ticket.id, ticket])
+    )
+
+    setTicketItems((previousTickets) => {
+      const nextTickets = previousTickets.map(
+        (ticket) => snapshotMap.get(ticket.id) ?? ticket
+      )
+
+      // Reinsert tickets removed by destructive actions (e.g. delete).
+      const existingIds = new Set(nextTickets.map((ticket) => ticket.id))
+      const missingSnapshotTickets = snapshotTickets.filter(
+        (ticket) => !existingIds.has(ticket.id)
+      )
+
+      return missingSnapshotTickets.length > 0
+        ? [...missingSnapshotTickets, ...nextTickets]
+        : nextTickets
+    })
+  }
+
   const handleMoveTicket = (
     ticketId: string,
     queueStatus: TicketQueueStatus,
@@ -240,6 +273,8 @@ export function useTicketsPageMutations({
     tableToolbarProps,
     setTableToolbarProps,
     updateSelectedTickets,
+    deleteTicketsByIds,
+    restoreTickets,
     handleVisibleTicketsChange,
     updateTicketItem,
     handleMoveTicket,

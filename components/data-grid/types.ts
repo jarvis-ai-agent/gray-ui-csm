@@ -35,6 +35,7 @@ export type DataGridToolbarRenderProps<ColumnId extends string> = {
   selectedRowCount: number
   allVisibleRowsSelected: boolean
   someVisibleRowsSelected: boolean
+  onToggleAllRows: (checked: boolean) => void
   clearSelection: () => void
   showSummaries: boolean
   onShowSummariesChange: (next: boolean) => void
@@ -76,6 +77,9 @@ export type DataGridProps<
   onOpenDrawerCell?: (cell: EditingCell<ColumnId>) => void
   drawerModal?: boolean
   disablePointerDismissal?: boolean
+  stickySummaryFooter?: boolean
+  fillAvailableHeight?: boolean
+  tableContainerClassName?: string
   onRowsChange?: (rows: Row[]) => void
 }
 

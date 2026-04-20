@@ -523,7 +523,7 @@ export function TicketTable({
   }, [onToolbarPropsChange])
 
   return (
-    <div className="overflow-hidden rounded-xl bg-card ring-1 ring-foreground/5 dark:ring-foreground/10">
+    <div className="h-full min-h-0 overflow-hidden rounded-xl bg-card ring-1 ring-foreground/5 dark:ring-foreground/10">
       <DataGrid<Ticket, TicketColumnId>
         rows={sortedTickets}
         columns={visibleColumns}
@@ -543,6 +543,9 @@ export function TicketTable({
         }}
         onRowsChange={onTicketsChange}
         onToolbarPropsChange={onToolbarPropsChange}
+        stickySummaryFooter
+        fillAvailableHeight
+        tableContainerClassName="h-full"
         onOpenDrawerCell={(cell) =>
           onOpenTicket?.(
             cell.rowId,
