@@ -1,14 +1,13 @@
-import { CsmPageTemplate } from "@/components/csm-page-template"
-import { getRouteByPathOrThrow } from "@/lib/csm-routes"
+import { CustomersPage as CustomersPageView } from "@/components/customers/customers-page"
 
-const route = getRouteByPathOrThrow("/customers")
+type CustomersRouteProps = {
+  searchParams: Promise<{
+    view?: string
+  }>
+}
 
-export default function CustomersPage() {
-  return (
-    <CsmPageTemplate
-      title={route.title}
-      description={route.description}
-      metrics={route.templateMetrics}
-    />
-  )
+export default async function CustomersPage({ searchParams }: CustomersRouteProps) {
+  const params = await searchParams
+
+  return <CustomersPageView initialView={params.view ?? null} />
 }

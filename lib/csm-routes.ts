@@ -88,7 +88,7 @@ export const csmRoutes: CsmRoute[] = [
     ],
   },
   {
-    title: "Customer Profiles",
+    title: "Customer",
     path: "/customers",
     description: "Customer 360 with lifecycle context and support history.",
     icon: "customers",

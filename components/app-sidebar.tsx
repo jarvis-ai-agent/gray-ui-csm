@@ -17,6 +17,7 @@ import {
   IconUsersGroup,
 } from "@tabler/icons-react"
 
+import { CustomerSidebarFilters } from "@/components/customers/customer-sidebar-filters"
 import { TicketSidebarFilters } from "@/components/tickets/ticket-sidebar-filters"
 import { Label } from "@/components/ui/label"
 import {
@@ -76,6 +77,7 @@ export function AppSidebar({
   const panelItems = matchedItem.sidebarPreview
 
   const isTicketsSection = matchedItem.path === "/tickets"
+  const isCustomersSection = matchedItem.path === "/customers"
   const isSidebarCollapsed = state === "collapsed"
   const shouldShowSecondaryPanel =
     displayMode !== "ticket-detail" && !isSidebarCollapsed
@@ -161,6 +163,12 @@ export function AppSidebar({
               <SidebarContent>
                 <Suspense fallback={null}>
                   <TicketSidebarFilters />
+                </Suspense>
+              </SidebarContent>
+            ) : isCustomersSection ? (
+              <SidebarContent>
+                <Suspense fallback={null}>
+                  <CustomerSidebarFilters />
                 </Suspense>
               </SidebarContent>
             ) : (

@@ -8,7 +8,7 @@ import {
   IconTicket,
 } from "@tabler/icons-react"
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { StatCard } from "@/components/stats/stat-card"
 import type { TicketStat } from "@/lib/tickets/types"
 
 type TicketStatsProps = {
@@ -71,23 +71,13 @@ export function TicketStats({ stats }: TicketStatsProps) {
   return (
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {stats.map((stat) => (
-        <Card
+        <StatCard
           key={stat.key}
-          className="gap-0 bg-muted/40 dark:bg-muted/25 rounded-2xl border py-0 shadow-none ring-0 p-1.5"
-        >
-          <CardHeader className="px-2 pb-2 pt-1">
-            <div className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-              <StatLeadIcon statKey={stat.key} />
-              {stat.label}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3 rounded-[calc(var(--radius-2xl)-6px)] border border-border bg-card px-5 py-4">
-            <p className="text-3xl leading-8 font-medium text-foreground">
-              {stat.value}
-            </p>
-            <StatTrendRow stat={stat} />
-          </CardContent>
-        </Card>
+          icon={<StatLeadIcon statKey={stat.key} />}
+          label={stat.label}
+          value={stat.value}
+          footer={<StatTrendRow stat={stat} />}
+        />
       ))}
     </section>
   )
