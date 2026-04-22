@@ -1,19 +1,12 @@
 import { TicketsPage } from "@/components/tickets/tickets-page"
 
-type TicketsRouteProps = {
-  searchParams: Promise<{
-    view?: string
-    layout?: string
-  }>
-}
+export const dynamic = 'force-static'
 
-export default async function Page({ searchParams }: TicketsRouteProps) {
-  const params = await searchParams
-
+export default async function Page() {
   return (
     <TicketsPage
-      initialView={params.view ?? null}
-      initialLayout={params.layout ?? null}
+      initialView={null}
+      initialLayout={null}
     />
   )
 }

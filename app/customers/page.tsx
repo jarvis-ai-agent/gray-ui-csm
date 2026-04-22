@@ -1,19 +1,12 @@
 import { CustomersPage as CustomersPageView } from "@/components/customers/customers-page"
 
-type CustomersRouteProps = {
-  searchParams: Promise<{
-    view?: string
-    layout?: string
-  }>
-}
+export const dynamic = 'force-static'
 
-export default async function CustomersPage({ searchParams }: CustomersRouteProps) {
-  const params = await searchParams
-
+export default async function CustomersPage() {
   return (
     <CustomersPageView
-      initialView={params.view ?? null}
-      initialLayout={params.layout ?? null}
+      initialView={null}
+      initialLayout={null}
     />
   )
 }
